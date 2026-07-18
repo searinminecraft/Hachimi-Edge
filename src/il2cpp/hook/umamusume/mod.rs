@@ -88,6 +88,7 @@ mod DownloadErrorProcessor;
 mod TitleViewController;
 mod Director;
 mod CySpringNative;
+mod PartsHomeCharaMessage;
 
 pub fn init() {
     get_assembly_image_or_return!(image, "umamusume.dll");
@@ -181,4 +182,5 @@ pub fn init() {
     TitleViewController::init(image);
     Director::init(image);
     CySpringNative::init(image);
+    PartsHomeCharaMessage::init(image);
 }

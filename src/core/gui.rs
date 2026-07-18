@@ -2781,6 +2781,12 @@ impl ConfigEditor {
                 ui.end_row();
             }
 
+            if should_show_option(search, &t!("config_editor.chara_speak_home_idle")) {
+                ui.label(t!("config_editor.chara_speak_home_idle"));
+                ui.checkbox(&mut config.chara_speak_home_idle, "");
+                ui.end_row();
+            }
+
             if should_show_option(search, &t!("config_editor.live_vocals_swap")) {
                 ui.label(t!("config_editor.live_vocals_swap"));
                 ui.horizontal(|ui| {

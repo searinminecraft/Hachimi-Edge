@@ -766,6 +766,8 @@ pub struct Config {
     pub live_playback_loop: bool,
     #[serde(default)]
     pub champions_live_show_text: bool,
+    #[serde(default)]
+    pub chara_speak_home_idle: bool,
     #[serde(default = "Config::default_champions_live_resource_id")]
     pub champions_live_resource_id: i32,
     #[serde(default = "Config::default_champions_live_year")]
