@@ -18,7 +18,7 @@ use chrono::{Utc, Datelike};
 use crate::il2cpp::{
     ext::StringExt,
     hook::{
-        umamusume::{CameraData::ShadowResolution, CySpringController::SpringUpdateMode, GameSystem, GraphicSettings::{GraphicsQuality, MsaaQuality}, Localize, TimeUtil::BgSeason},
+        umamusume::{CameraData::ShadowResolution, CySpringController::SpringUpdateMode, Director, GameSystem, GraphicSettings::{GraphicsQuality, MsaaQuality}, Localize, TimeUtil::BgSeason, SceneManager as UmaSceneManager},
         UnityEngine_CoreModule::{Application, Texture::AnisoLevel}
     },
     symbols::Thread
@@ -36,9 +36,11 @@ use crate::il2cpp::{
 use crate::il2cpp::hook::UnityEngine_CoreModule::QualitySettings;
 
 use super::{
+    free_camera::{self, FreeCameraMode},
     game::Region,
     hachimi::{self, Language, REPO_PATH, WEBSITE_URL},
     http::{ureq_config, AsyncRequest},
+    live_utils,
     tl_repo::{self, RepoInfo, LocalRepoInfo},
     utils::{self, get_localized_string, SendPtr},
     Hachimi
@@ -91,6 +93,9 @@ pub fn set_menu_width(width: f32) {
     }
 }
 
+#[cfg(target_os = "windows")]
+static PENDING_TITLE: Mutex<Option<Option<String>>> = Mutex::new(None);
+
 static REMOVING_TLREPO: atomic::AtomicBool = atomic::AtomicBool::new(false);
 static REMOVED_TLREPO_ID: atomic::AtomicU32 = atomic::AtomicU32::new(u32::MAX);
 
@@ -136,8 +141,10 @@ const PIXELS_PER_POINT_RATIO: f32 = 3.0/1080.0;
 
 static INSTANCE: OnceCell<Mutex<Gui>> = OnceCell::new();
 pub static IS_CONSUMING_INPUT: AtomicBool = AtomicBool::new(false);
+pub static GUI_INPUT_ACTIVE: AtomicBool = AtomicBool::new(false);
 pub static WANTS_INPUT: AtomicBool = AtomicBool::new(false);
 pub static IS_LIVE_SCENE: AtomicBool = AtomicBool::new(false);
+pub static IS_LIVE_SLIDER_ACTIVE: AtomicBool = AtomicBool::new(false);
 static DISABLED_GAME_UIS: Lazy<Mutex<FnvHashSet<SendPtr>>> =
     Lazy::new(|| Mutex::new(FnvHashSet::default()));
 static PLUGIN_MENU_ITEMS: Lazy<Mutex<Vec<PluginMenuItem>>> = Lazy::new(|| Mutex::new(Vec::new()));
@@ -772,90 +779,105 @@ impl Gui {
     }
 
     fn run_live_slider(&mut self, ctx: &egui::Context) {
-        let config = crate::core::Hachimi::instance().config.load();
+        if !IS_LIVE_SCENE.load(atomic::Ordering::Acquire) {
+            return;
+        }
+
+        let config = Hachimi::instance().config.load();
 
         use crate::il2cpp::{ext::Il2CppStringExt, hook::UnityEngine_CoreModule::{SceneManager, Scene}};
+
+        let sm = UmaSceneManager::instance();
+        let in_photo_mode = if !sm.is_null() {
+            let photo_check = UmaSceneManager::get_PhotoCheckObject(sm);
+            let photo_library = UmaSceneManager::get_PhotoLibraryObject(sm);
+            !photo_check.is_null() || !photo_library.is_null()
+        } else {
+            false
+        };
+        if in_photo_mode {
+            return;
+        }
+
         let scene = SceneManager::GetActiveScene();
         let name_ptr = Scene::GetNameInternal(scene.handle);
         let scene_name = if name_ptr.is_null() { String::new() } else { unsafe { (*name_ptr).as_utf16str().to_string() } };
 
         if scene_name != "Live" {
+            if IS_LIVE_SLIDER_ACTIVE.load(atomic::Ordering::Acquire) {
+                ctx.input(|_i| {});
+            }
             IS_LIVE_SCENE.store(false, atomic::Ordering::Release);
+            IS_LIVE_SLIDER_ACTIVE.store(false, atomic::Ordering::Release);
+            live_utils::reset_live_drag_state();
             return;
         }
 
-        unsafe {
-            let image = match crate::il2cpp::symbols::get_assembly_image(c"umamusume.dll") {
-                Ok(img) => img,
-                Err(_) => return
-            };
-            let dir_class = match crate::il2cpp::symbols::get_class(image, c"Gallop.Live", c"Director") {
-                Ok(k) => k,
-                Err(_) => return
-            };
-            let director = crate::il2cpp::symbols::SingletonLike::new(dir_class).unwrap().instance();
-            if director.is_null() { return; }
+        IS_LIVE_SCENE.store(true, atomic::Ordering::Release);
 
-            let get_current_time_addr = crate::il2cpp::symbols::get_method_addr_cached(dir_class, c"get_LiveCurrentTime", 0);
-            let get_total_time_addr = crate::il2cpp::symbols::get_method_addr_cached(dir_class, c"get_LiveTotalTime", 0);
-            if get_current_time_addr == 0 || get_total_time_addr == 0 { return; }
+        let director = Director::instance();
+        if director.is_null() { return; }
 
-            let get_current_time: extern "C" fn(*mut crate::il2cpp::types::Il2CppObject) -> f32 = std::mem::transmute(get_current_time_addr);
-            let get_total_time: extern "C" fn(*mut crate::il2cpp::types::Il2CppObject) -> f32 = std::mem::transmute(get_total_time_addr);
+        let mut current = Director::get_LiveCurrentTime(director);
+        let total = Director::get_LiveTotalTime(director);
+        if total <= 0.0 { return; }
 
-            let mut current = get_current_time(director);
-            let total = get_total_time(director);
-            if total <= 0.0 { return; }
+        if config.live_playback_loop && current >= total - 0.1 {
+            live_utils::move_live_playback(0.0);
+            current = 0.0;
+        }
 
-            if config.live_playback_loop && current >= total - 0.1 {
-                crate::core::live_utils::move_live_playback(0.0);
-                current = 0.0;
-            }
+        let is_paused = Director::is_live_paused();
+        if !config.live_slider_always_show && !is_paused {
+            IS_LIVE_SLIDER_ACTIVE.store(false, atomic::Ordering::Release);
+            return;
+        }
 
-            let is_pause_live_addr = crate::il2cpp::symbols::get_method_addr_cached(dir_class, c"IsPauseLive", 0);
-            if is_pause_live_addr != 0 {
-                let is_pause_live: extern "C" fn(*mut crate::il2cpp::types::Il2CppObject) -> bool = std::mem::transmute(is_pause_live_addr);
-                if !config.live_slider_always_show && !is_pause_live(director) { return; }
-            } else if !config.live_slider_always_show {
-                return;
-            }
+        IS_LIVE_SLIDER_ACTIVE.store(true, atomic::Ordering::Release);
 
-            let scale = get_scale(ctx);
-            egui::Area::new(egui::Id::new("live_slider_area"))
-                .anchor(egui::Align2::CENTER_BOTTOM, egui::vec2(0.0, -40.0 * scale))
-                .show(ctx, |ui| {
-                    egui::Frame::window(&ctx.style())
-                        .fill(egui::Color32::from_black_alpha(150))
-                        .inner_margin(egui::Margin::symmetric((16.0 * scale) as i8, (8.0 * scale) as i8))
-                        .corner_radius(10.0 * scale)
-                        .show(ui, |ui| {
-                            ui.set_width(ctx.content_rect().width() * 0.7);
-                            ui.horizontal(|ui| {
-                                let curr_m = (current / 60.0).floor() as i32;
-                                let curr_s = (current % 60.0).floor() as i32;
-                                let tot_m = (total / 60.0).floor() as i32;
-                                let tot_s = (total % 60.0).floor() as i32;
-                                ui.label(format!("{:02}:{:02} / {:02}:{:02}", curr_m, curr_s, tot_m, tot_s));
+        let scale = get_scale(ctx);
+        egui::Area::new(egui::Id::new("live_slider_area"))
+            .anchor(egui::Align2::CENTER_BOTTOM, egui::vec2(0.0, -40.0 * scale))
+            .show(ctx, |ui| {
+                egui::Frame::window(&ctx.style())
+                    .fill(egui::Color32::from_black_alpha(150))
+                    .inner_margin(egui::Margin::symmetric((16.0 * scale) as i8, (8.0 * scale) as i8))
+                    .corner_radius(10.0 * scale)
+                    .show(ui, |ui| {
+                        ui.set_width(ctx.content_rect().width() * 0.7);
+                        ui.horizontal(|ui| {
+                            let curr_m = (current / 60.0).floor() as i32;
+                            let curr_s = (current % 60.0).floor() as i32;
+                            let tot_m = (total / 60.0).floor() as i32;
+                            let tot_s = (total % 60.0).floor() as i32;
+                            ui.label(format!("{:02}:{:02} / {:02}:{:02}", curr_m, curr_s, tot_m, tot_s));
 
-                                let available_w = ui.available_width();
+                            let available_w = ui.available_width();
 
-                                ui.scope(|ui| {
-                                    ui.spacing_mut().slider_width = available_w - (16.0 * scale);
+                            ui.scope(|ui| {
+                                ui.spacing_mut().slider_width = available_w - (16.0 * scale);
 
-                                    let res = ui.add(
-                                        egui::Slider::new(&mut current, 0.0..=total)
-                                            .show_value(false)
-                                            .trailing_fill(true)
-                                    );
+                                let res = ui.add(
+                                    egui::Slider::new(&mut current, 0.0..=total)
+                                        .show_value(false)
+                                        .trailing_fill(true)
+                                );
 
-                                    if res.changed() {
-                                        crate::core::live_utils::move_live_playback(current);
-                                    }
-                                });
+                                if res.drag_started() {
+                                    live_utils::begin_live_drag();
+                                }
+
+                                if res.changed() {
+                                    live_utils::move_live_playback(current);
+                                }
+
+                                if res.drag_stopped() {
+                                    live_utils::end_live_drag();
+                                }
                             });
                         });
-                });
-        }
+                    });
+            });
     }
 
     pub fn run(&mut self) -> egui::FullOutput {
@@ -906,6 +928,7 @@ impl Gui {
         self.process_plugin_windows();
         self.run_windows();
         self.run_notifications();
+        self.run_free_camera_overlay();
 
         if self.splash_visible { self.run_splash(); }
         self.process_notification_requests();
@@ -998,15 +1021,21 @@ impl Gui {
         self.run_live_slider(&ctx);
 
         let has_interactive_widgets = IS_LIVE_SCENE.load(atomic::Ordering::Relaxed);
+        let free_camera_input_capture = free_camera::wants_windows_input_capture();
 
-        // Store this as an atomic value so the input thread can check it without locking the gui
-        IS_CONSUMING_INPUT.store(self.is_consuming_input() || has_interactive_widgets, atomic::Ordering::Relaxed);
+        // Store these as atomic values so the input thread can check them without locking the gui
+        GUI_INPUT_ACTIVE.store(self.is_consuming_input(), atomic::Ordering::Release);
+        IS_CONSUMING_INPUT.store(
+            self.is_consuming_input() || has_interactive_widgets || free_camera_input_capture,
+            atomic::Ordering::Release
+        );
 
         WANTS_INPUT.store(
             self.context.wants_pointer_input() || 
             self.context.is_pointer_over_area() || 
-            self.context.wants_keyboard_input(), 
-            atomic::Ordering::Relaxed
+            self.context.wants_keyboard_input() ||
+            free_camera_input_capture,
+            atomic::Ordering::Release
         );
 
         self.context.end_pass()
@@ -1198,12 +1227,19 @@ impl Gui {
                                 ui.vertical(|ui| {
                                     ui.label(t!("config_editor.enable_smtc"));
                                 });
-                                if ui.checkbox(&mut self.config.windows.enable_smtc, "").changed() {
-                                    use crate::windows::smtc;
-                                    if self.config.windows.enable_smtc {
-                                        smtc::init(crate::windows::wnd_hook::get_target_hwnd());
-                                    } else {
-                                        smtc::unregister();
+                                let mut enable_smtc = hachimi.config.load().windows.enable_smtc;
+                                if ui.checkbox(&mut enable_smtc, "").changed() {
+                                    use crate::windows::{smtc, wnd_hook::get_target_hwnd};
+                                    let mut config = hachimi.config.load().as_ref().clone();
+                                    config.windows.enable_smtc = enable_smtc;
+                                    save_and_reload_config(config);
+                                    self.config.windows.enable_smtc = enable_smtc;
+                                    if UmaSceneManager::is_home_init() {
+                                        if enable_smtc {
+                                            smtc::init(get_target_hwnd());
+                                        } else {
+                                            smtc::unregister();
+                                        }
                                     }
                                 }
                             });
@@ -1446,7 +1482,7 @@ impl Gui {
 
         let mut changed = false;
         egui::ComboBox::new(ui.id().with(id_child), "")
-        .wrap_mode(egui::TextWrapMode::Wrap)
+        .wrap_mode(egui::TextWrapMode::Extend)
         .selected_text(selected)
         .show_ui(ui, |ui| {
             for choice in choices.iter() {
@@ -1630,21 +1666,52 @@ impl Gui {
         self.notifications.retain_mut(|n| n.run(&self.context, &mut offset));
     }
 
+    fn run_free_camera_overlay(&mut self) {
+        let Some((content, alpha)) = free_camera::overlay_message() else {
+            return;
+        };
+
+        let ctx = &self.context;
+        let scale = get_scale(ctx);
+        let fill = egui::Color32::from_black_alpha((170.0 * alpha) as u8);
+        let text = self.config.ui_text_color.linear_multiply(alpha);
+
+        egui::Area::new(egui::Id::new("free_camera_overlay"))
+        .anchor(egui::Align2::RIGHT_TOP, egui::vec2(-16.0 * scale, 16.0 * scale))
+        .show(ctx, |ui| {
+            egui::Frame::NONE
+            .fill(fill)
+            .inner_margin(egui::Margin::symmetric((10.0 * scale) as i8, (6.0 * scale) as i8))
+            .corner_radius(6.0 * scale)
+            .show(ui, |ui| {
+                ui.set_min_width(260.0 * scale);
+                ui.visuals_mut().override_text_color = Some(text);
+                ui.label(content);
+            });
+        });
+    }
+
     fn run_windows(&mut self) {
         self.windows.retain_mut(|w| w.run(&self.context));
     }
 
     pub fn is_empty(&self) -> bool {
         !self.splash_visible && !self.menu_visible && !self.update_progress_visible &&
-        self.notifications.is_empty() && self.windows.is_empty() && !IS_LIVE_SCENE.load(atomic::Ordering::Relaxed)
+        self.notifications.is_empty() && self.windows.is_empty() &&
+        !IS_LIVE_SCENE.load(atomic::Ordering::Acquire) &&
+        !free_camera::has_overlay_message()
     }
 
     pub fn is_consuming_input(&self) -> bool {
-        self.menu_visible || !self.windows.is_empty()
+        self.menu_visible || !self.windows.is_empty() || IS_LIVE_SLIDER_ACTIVE.load(atomic::Ordering::Acquire)
     }
 
     pub fn is_consuming_input_atomic() -> bool {
-        IS_CONSUMING_INPUT.load(atomic::Ordering::Relaxed)
+        IS_CONSUMING_INPUT.load(atomic::Ordering::Acquire)
+    }
+
+    pub fn is_gui_input_active_atomic() -> bool {
+        GUI_INPUT_ACTIVE.load(atomic::Ordering::Relaxed)
     }
 
     pub fn set_consuming_input(&mut self, val: bool) {
@@ -1653,11 +1720,12 @@ impl Gui {
         }
 
         self.menu_visible = val;
-        IS_CONSUMING_INPUT.store(val, atomic::Ordering::Relaxed);
+        GUI_INPUT_ACTIVE.store(val, atomic::Ordering::Release);
+        IS_CONSUMING_INPUT.store(val, atomic::Ordering::Release);
     }
 
     pub fn wants_input_atomic() -> bool {
-        WANTS_INPUT.load(atomic::Ordering::Relaxed)
+        WANTS_INPUT.load(atomic::Ordering::Acquire)
     }
 
     pub fn toggle_menu(&mut self) {
@@ -2201,6 +2269,7 @@ struct ConfigEditor {
     current_tab: ConfigEditorTab,
     search_term: String,
     champions_resources: Vec<String>,
+    champions_live_max_year: i32,
     font_color_options: Vec<String>,
     outline_size_options: Vec<String>,
     outline_color_options: Vec<String>,
@@ -2263,6 +2332,7 @@ impl ConfigEditor {
             current_tab: ConfigEditorTab::General,
             search_term: String::new(),
             champions_resources: crate::il2cpp::sql::get_champions_resources(),
+            champions_live_max_year: crate::il2cpp::sql::get_champions_live_max_year(),
             font_color_options: get_enum_options(c"FontColorType"),
             outline_size_options: get_enum_options(c"OutlineSizeType"),
             outline_color_options: get_enum_options(c"OutlineColorType"),
@@ -2690,6 +2760,7 @@ impl ConfigEditor {
             #[cfg(target_os = "windows")]
             {
                 use crate::windows::hachimi_impl::{FullScreenMode, ResolutionScaling};
+                let supports_freeform_window = Hachimi::instance().game.region != Region::Global;
 
                 if should_show_option(search, &t!("config_editor.vsync")) {
                     ui.label(t!("config_editor.vsync"));
@@ -2701,6 +2772,37 @@ impl ConfigEditor {
                     ui.label(t!("config_editor.auto_full_screen"));
                     ui.checkbox(&mut config.windows.auto_full_screen, "");
                     ui.end_row();
+                }
+
+                if supports_freeform_window &&
+                    should_show_option(search, &t!("config_editor.freeform_window"))
+                {
+                    ui.label(t!("config_editor.freeform_window"));
+                    ui.checkbox(&mut config.windows.freeform_window, "");
+                    ui.end_row();
+                }
+
+                if supports_freeform_window && config.windows.freeform_window {
+                    if should_show_option(search, &t!("config_editor.freeform_ui_scale_auto")) {
+                        ui.label(t!("config_editor.freeform_ui_scale_auto"));
+                        ui.checkbox(&mut config.windows.freeform_ui_scale_auto, "");
+                        ui.end_row();
+                    }
+
+                    if config.windows.freeform_ui_scale_auto &&
+                        should_show_option(search, &t!("config_editor.freeform_ui_scale_auto_ratio"))
+                    {
+                        ui.label(t!("config_editor.freeform_ui_scale_auto_ratio"));
+                        ui.add(
+                            egui::Slider::new(
+                                &mut config.windows.freeform_ui_scale_auto_ratio,
+                                0.25..=3.0
+                            )
+                                .step_by(0.05)
+                                .fixed_decimals(2)
+                        );
+                        ui.end_row();
+                    }
                 }
 
                 if should_show_option(search, &t!("config_editor.full_screen_mode")) {
@@ -2773,6 +2875,35 @@ impl ConfigEditor {
                 ui.label(t!("config_editor.force_allow_dynamic_camera"));
                 ui.checkbox(&mut config.force_allow_dynamic_camera, "");
                 ui.end_row();
+            }
+
+            #[cfg(target_os = "windows")]
+            {
+                if should_show_option(search, &t!("config_editor.free_camera")) {
+                    ui.label(t!("config_editor.free_camera"));
+                    let was_enabled = config.free_camera.enabled;
+                    if ui.checkbox(&mut config.free_camera.enabled, "").changed() &&
+                        !was_enabled &&
+                        config.free_camera.enabled
+                    {
+                        thread::spawn(|| {
+                            Gui::instance().unwrap()
+                                .lock().unwrap()
+                                .show_notification(&t!("notification.free_camera_input_disabled"));
+                        });
+                    }
+                    ui.end_row();
+
+                    ui.label("");
+                    if ui.button(t!("config_editor.free_camera_settings")).clicked() {
+                        thread::spawn(|| {
+                            Gui::instance().unwrap()
+                            .lock().unwrap()
+                            .show_window(Box::new(FreeCameraSettingsWindow::new()));
+                        });
+                    }
+                    ui.end_row();
+                }
             }
 
             if should_show_option(search, &t!("config_editor.live_theater_allow_same_chara")) {
@@ -2854,112 +2985,112 @@ impl ConfigEditor {
                     }
                 }
                 ui.end_row();
+            }
 
-                if should_show_option(search, &t!("config_editor.live_slider_always_show")) {
-                    ui.label(t!("config_editor.live_slider_always_show"));
-                    ui.checkbox(&mut config.live_slider_always_show, "");
+            if should_show_option(search, &t!("config_editor.live_slider_always_show")) {
+                ui.label(t!("config_editor.live_slider_always_show"));
+                ui.checkbox(&mut config.live_slider_always_show, "");
+                ui.end_row();
+            }
+
+            if should_show_option(search, &t!("config_editor.live_playback_loop")) {
+                ui.label(t!("config_editor.live_playback_loop"));
+                ui.checkbox(&mut config.live_playback_loop, "");
+                ui.end_row();
+            }
+
+            if should_show_option(search, &t!("config_editor.champions_live_show_text")) {
+                ui.label(t!("config_editor.champions_live_show_text"));
+                ui.checkbox(&mut config.champions_live_show_text, "");
+                ui.end_row();
+            }
+
+            if config.champions_live_show_text {
+                if should_show_option(search, &t!("config_editor.champions_live_resource_id")) {
+                    ui.label(t!("config_editor.champions_live_resource_id"));
+                    let mut choices: Vec<(i32, &str)> = Vec::new();
+                    for (i, name) in self.champions_resources.iter().enumerate() {
+                        choices.push(((i + 1) as i32, name.as_str()));
+                    }
+                    Gui::run_combo(ui, "champions_live_resource_id", &mut config.champions_live_resource_id, &choices);
+                    ui.end_row();
+                    ui.label(t!("config_editor.champions_live_year"));
+                    ui.add(egui::DragValue::new(&mut config.champions_live_year).range(2022..=self.champions_live_max_year));
+                    ui.end_row();
+                }
+            }
+
+            if should_show_option(search, &t!("config_editor.captions")) {
+                ui.label(t!("config_editor.captions"));
+                ui.checkbox(&mut config.caption.caption_enable, "");
+                ui.end_row();
+            }
+
+            if config.caption.caption_enable {
+                if should_show_option(search, &t!("config_editor.caption_lines_char_count")) {
+                    ui.label(t!("config_editor.caption_lines_char_count"));
+                    ui.add(egui::Slider::new(&mut config.caption.caption_lines_char_count, 10..=100));
                     ui.end_row();
                 }
 
-                if should_show_option(search, &t!("config_editor.live_playback_loop")) {
-                    ui.label(t!("config_editor.live_playback_loop"));
-                    ui.checkbox(&mut config.live_playback_loop, "");
+                if should_show_option(search, &t!("config_editor.caption_font_size")) {
+                    ui.label(t!("config_editor.caption_font_size"));
+                    ui.add(egui::Slider::new(&mut config.caption.caption_font_size, 10..=128));
                     ui.end_row();
                 }
 
-                if should_show_option(search, &t!("config_editor.champions_live_show_text")) {
-                    ui.label(t!("config_editor.champions_live_show_text"));
-                    ui.checkbox(&mut config.champions_live_show_text, "");
+                if should_show_option(search, &t!("config_editor.caption_pos_x")) {
+                    ui.label(t!("config_editor.caption_pos_x"));
+                    ui.add(egui::Slider::new(&mut config.caption.caption_pos_x, -10.0..=10.0));
                     ui.end_row();
                 }
 
-                if config.champions_live_show_text {
-                    if should_show_option(search, &t!("config_editor.champions_live_resource_id")) {
-                        ui.label(t!("config_editor.champions_live_resource_id"));
-                        let mut choices: Vec<(i32, &str)> = Vec::new();
-                        for (i, name) in self.champions_resources.iter().enumerate() {
-                            choices.push(((i + 1) as i32, name.as_str()));
-                        }
-                        Gui::run_combo(ui, "champions_live_resource_id", &mut config.champions_live_resource_id, &choices);
-                        ui.end_row();
-                        ui.label(t!("config_editor.champions_live_year"));
-                        ui.add(egui::DragValue::new(&mut config.champions_live_year).range(2021..=2030));
-                        ui.end_row();
-                    }
-                }
-
-                if should_show_option(search, &t!("config_editor.captions")) {
-                    ui.label(t!("config_editor.captions"));
-                    ui.checkbox(&mut config.caption.caption_enable, "");
+                if should_show_option(search, &t!("config_editor.caption_pos_y")) {
+                    ui.label(t!("config_editor.caption_pos_y"));
+                    ui.add(egui::Slider::new(&mut config.caption.caption_pos_y, -10.0..=10.0));
                     ui.end_row();
                 }
 
-                if config.caption.caption_enable {
-                    if should_show_option(search, &t!("config_editor.caption_lines_char_count")) {
-                        ui.label(t!("config_editor.caption_lines_char_count"));
-                        ui.add(egui::Slider::new(&mut config.caption.caption_lines_char_count, 10..=100));
-                        ui.end_row();
-                    }
+                if should_show_option(search, &t!("config_editor.caption_bg_alpha")) {
+                    ui.label(t!("config_editor.caption_bg_alpha"));
+                    ui.add(egui::Slider::new(&mut config.caption.caption_bg_alpha, 0.0..=1.0));
+                    ui.end_row();
+                }
 
-                    if should_show_option(search, &t!("config_editor.caption_font_size")) {
-                        ui.label(t!("config_editor.caption_font_size"));
-                        ui.add(egui::Slider::new(&mut config.caption.caption_font_size, 10..=128));
-                        ui.end_row();
-                    }
+                if should_show_option(search, &t!("config_editor.caption_color")) {
+                    ui.label(t!("config_editor.caption_color"));
+                    egui::ComboBox::new(ui.id().with("caption_color"), "")
+                        .selected_text(&config.caption.caption_color)
+                        .show_ui(ui, |ui| {
+                            for option in &self.font_color_options {
+                                ui.selectable_value(&mut config.caption.caption_color, option.clone(), option);
+                            }
+                        });
+                    ui.end_row();
+                }
 
-                    if should_show_option(search, &t!("config_editor.caption_pos_x")) {
-                        ui.label(t!("config_editor.caption_pos_x"));
-                        ui.add(egui::Slider::new(&mut config.caption.caption_pos_x, -10.0..=10.0));
-                        ui.end_row();
-                    }
+                if should_show_option(search, &t!("config_editor.caption_outline_size")) {
+                    ui.label(t!("config_editor.caption_outline_size"));
+                    egui::ComboBox::new(ui.id().with("caption_outline_size"), "")
+                        .selected_text(&config.caption.caption_outline_size)
+                        .show_ui(ui, |ui| {
+                            for option in &self.outline_size_options {
+                                ui.selectable_value(&mut config.caption.caption_outline_size, option.clone(), option);
+                            }
+                        });
+                    ui.end_row();
+                }
 
-                    if should_show_option(search, &t!("config_editor.caption_pos_y")) {
-                        ui.label(t!("config_editor.caption_pos_y"));
-                        ui.add(egui::Slider::new(&mut config.caption.caption_pos_y, -10.0..=10.0));
-                        ui.end_row();
-                    }
-
-                    if should_show_option(search, &t!("config_editor.caption_bg_alpha")) {
-                        ui.label(t!("config_editor.caption_bg_alpha"));
-                        ui.add(egui::Slider::new(&mut config.caption.caption_bg_alpha, 0.0..=1.0));
-                        ui.end_row();
-                    }
-
-                    if should_show_option(search, &t!("config_editor.caption_color")) {
-                        ui.label(t!("config_editor.caption_color"));
-                        egui::ComboBox::new(ui.id().with("caption_color"), "")
-                            .selected_text(&config.caption.caption_color)
-                            .show_ui(ui, |ui| {
-                                for option in &self.font_color_options {
-                                    ui.selectable_value(&mut config.caption.caption_color, option.clone(), option);
-                                }
-                            });
-                        ui.end_row();
-                    }
-
-                    if should_show_option(search, &t!("config_editor.caption_outline_size")) {
-                        ui.label(t!("config_editor.caption_outline_size"));
-                        egui::ComboBox::new(ui.id().with("caption_outline_size"), "")
-                            .selected_text(&config.caption.caption_outline_size)
-                            .show_ui(ui, |ui| {
-                                for option in &self.outline_size_options {
-                                    ui.selectable_value(&mut config.caption.caption_outline_size, option.clone(), option);
-                                }
-                            });
-                        ui.end_row();
-                    }
-
-                    if should_show_option(search, &t!("config_editor.caption_outline_color")) {
-                        ui.label(t!("config_editor.caption_outline_color"));
-                        egui::ComboBox::new(ui.id().with("caption_outline_color"), "")
-                            .selected_text(&config.caption.caption_outline_color)
-                            .show_ui(ui, |ui| {
-                                for option in &self.outline_color_options {
-                                    ui.selectable_value(&mut config.caption.caption_outline_color, option.clone(), option);
-                                }
-                            });
-                        ui.end_row();
-                    }
+                if should_show_option(search, &t!("config_editor.caption_outline_color")) {
+                    ui.label(t!("config_editor.caption_outline_color"));
+                    egui::ComboBox::new(ui.id().with("caption_outline_color"), "")
+                        .selected_text(&config.caption.caption_outline_color)
+                        .show_ui(ui, |ui| {
+                            for option in &self.outline_color_options {
+                                ui.selectable_value(&mut config.caption.caption_outline_color, option.clone(), option);
+                            }
+                        });
+                    ui.end_row();
                 }
             }
 
@@ -3075,27 +3206,32 @@ impl Window for ConfigEditor {
 
                     ui.add_space(4.0);
 
-                    egui::ScrollArea::vertical()
-                    .id_salt("body_scroll")
-                    .show(ui, |ui| {
-                        egui::Frame::NONE
-                        .inner_margin(egui::Margin::symmetric(8, 0))
+                    ui.scope(|ui| {
+                        ui.set_width(ui.available_width());
+                        egui::ScrollArea::vertical()
+                        .id_salt("body_scroll")
+                        .auto_shrink([false, false])
                         .show(ui, |ui| {
-                            egui::Grid::new(self.id.with("options_grid"))
-                            .striped(true)
-                            .num_columns(2)
-                            .spacing([40.0 * scale, 4.0 * scale])
+                            ui.set_width(ui.available_width());
+                            egui::Frame::NONE
+                            .inner_margin(egui::Margin::symmetric(8, 0))
                             .show(ui, |ui| {
-                                self.run_options_grid(&mut config, ui, self.current_tab, &self.search_term);
+                                egui::Grid::new(self.id.with("options_grid"))
+                                .striped(true)
+                                .num_columns(2)
+                                .spacing([40.0 * scale, 4.0 * scale])
+                                .show(ui, |ui| {
+                                    self.run_options_grid(&mut config, ui, self.current_tab, &self.search_term);
+                                });
                             });
-                        });
-                        #[cfg(target_os = "android")]
-                        {
-                            let padding = ime_scroll_padding(ui.ctx());
-                            if padding > 0.0 {
-                                ui.add_space(padding);
+                            #[cfg(target_os = "android")]
+                            {
+                                let padding = ime_scroll_padding(ui.ctx());
+                                if padding > 0.0 {
+                                    ui.add_space(padding);
+                                }
                             }
-                        }
+                        });
                     });
                 },
                 |ui| {
@@ -3123,14 +3259,15 @@ impl Window for ConfigEditor {
         if save_clicked {
             #[cfg(target_os = "windows")]
             {
+                *PENDING_TITLE.lock().unwrap() = Some(self.config.windows.custom_title_name.clone());
                 use windows::{core::HSTRING, Win32::UI::WindowsAndMessaging::SetWindowTextW};
-                let title_clone = self.config.windows.custom_title_name.clone();
-                std::thread::spawn(move || {
-                    let hachimi = Hachimi::instance();
+                Thread::main_thread().schedule(move || {
                     let hwnd = crate::windows::wnd_hook::get_target_hwnd();
-                    if let Some(title) = title_clone {
-                        let _ = unsafe { SetWindowTextW(hwnd, &HSTRING::from(title.as_str())) };
+                    let title = PENDING_TITLE.lock().unwrap().take().flatten();
+                    if let Some(t) = title {
+                        let _ = unsafe { SetWindowTextW(hwnd, &HSTRING::from(t.as_str())) };
                     } else {
+                        let hachimi = Hachimi::instance();
                         let default_title = if hachimi.game.region == Region::Japan && hachimi.game.is_steam_release {
                             HSTRING::from("UmamusumePrettyDerby_Jpn")
                         } else {
@@ -3161,7 +3298,13 @@ impl Window for ConfigEditor {
 
 fn save_and_reload_config(config: hachimi::Config) {
     let notif = match Hachimi::instance().save_and_reload_config(config) {
-        Ok(_) => t!("notification.config_saved").into_owned(),
+        Ok(_) => {
+            #[cfg(target_os = "windows")]
+            crate::windows::wnd_hook::apply_freeform_window_config();
+            free_camera::reload_runtime_config();
+
+            t!("notification.config_saved").into_owned()
+        },
         Err(e) => e.to_string()
     };
 
@@ -3470,6 +3613,300 @@ impl Window for LiveVocalsSwapWindow {
                 }
             );
         });
+
+        if save_clicked {
+            save_and_reload_config(self.config.clone());
+        }
+
+        open &= open2;
+        open
+    }
+}
+
+struct FreeCameraSettingsWindow {
+    id: egui::Id,
+    config: hachimi::Config,
+}
+
+impl FreeCameraSettingsWindow {
+    fn new() -> FreeCameraSettingsWindow {
+        FreeCameraSettingsWindow {
+            id: random_id(),
+            config: (**Hachimi::instance().config.load()).clone(),
+        }
+    }
+
+    #[cfg(target_os = "windows")]
+    fn keybind_row(
+        ui: &mut egui::Ui,
+        label: Cow<'static, str>,
+        key: u16,
+        setter: fn(&mut free_camera::FreeCameraKeybinds, u16),
+    ) {
+        ui.label(label);
+        ui.horizontal(|ui| {
+            ui.label(crate::windows::utils::vk_to_display_label(key));
+            if ui.button(t!("bind_key")).clicked() {
+                Self::open_keybind_window(setter);
+            }
+        });
+        ui.end_row();
+    }
+
+    #[cfg(target_os = "windows")]
+    fn open_keybind_window(setter: fn(&mut free_camera::FreeCameraKeybinds, u16)) {
+        thread::spawn(move || {
+            let Some(gui_mutex) = Gui::instance() else { return };
+            let mut gui = gui_mutex.lock().unwrap();
+            gui.show_window(Box::new(SetKeybindWindow::new(move |result| {
+                let Some(raw) = result else { return };
+
+                let hachimi = Hachimi::instance();
+                let mut new_config = hachimi.config.load().as_ref().clone();
+                setter(&mut new_config.free_camera.keybinds, raw);
+                save_and_reload_config(new_config);
+            })));
+        });
+    }
+}
+
+impl Window for FreeCameraSettingsWindow {
+    fn run(&mut self, ctx: &egui::Context) -> bool {
+        let scale = get_scale(ctx);
+        let mut open = true;
+        let mut open2 = true;
+        let mut save_clicked = false;
+        let mut reset_clicked = false;
+
+        #[cfg(target_os = "windows")]
+        {
+            self.config.free_camera.keybinds =
+                Hachimi::instance().config.load().free_camera.keybinds.clone();
+        }
+
+        let mode_free = t!("free_camera.mode_free");
+        let mode_first_person = t!("free_camera.mode_first_person");
+        let mode_selfie_stick = t!("free_camera.mode_selfie_stick");
+        let mode_choices = [
+            (FreeCameraMode::Free, mode_free.as_ref()),
+            (FreeCameraMode::FirstPerson, mode_first_person.as_ref()),
+            (FreeCameraMode::SelfieStick, mode_selfie_stick.as_ref()),
+        ];
+        let live_position_choices: Vec<(i32, &str)> = free_camera::LIVE_POSITION_CHOICES
+            .iter()
+            .enumerate()
+            .map(|(i, (name, _))| (i as i32, *name))
+            .collect();
+        let live_part_choices: Vec<(i32, &str)> = free_camera::LIVE_PART_CHOICES
+            .iter()
+            .enumerate()
+            .map(|(i, (name, _))| (i as i32, *name))
+            .collect();
+
+        new_window(ctx, self.id, t!("free_camera.title"))
+        .default_width(340.0 * scale)
+        .max_width(360.0 * scale)
+        .max_height(430.0 * scale)
+        .open(&mut open)
+        .show(ctx, |ui| {
+            ui.with_layout(egui::Layout::top_down(egui::Align::Min), |ui| {
+                ui.set_width(ui.available_width());
+                egui::ScrollArea::vertical()
+                    .id_salt(self.id.with("free_camera_settings_scroll"))
+                    .auto_shrink([false, false])
+                    .show(ui, |ui| {
+                        ui.set_width(ui.available_width());
+                        egui::Frame::NONE
+                        .inner_margin(egui::Margin::symmetric(4, 0))
+                        .show(ui, |ui| {
+                            egui::Grid::new(self.id.with("free_camera_settings_grid"))
+                            .striped(true)
+                            .num_columns(2)
+                            .spacing([12.0 * scale, 4.0 * scale])
+                            .show(ui, |ui| {
+                                let cfg = &mut self.config.free_camera;
+
+                                ui.strong(t!("free_camera.section_general"));
+                                ui.label("");
+                                ui.end_row();
+
+                                ui.label(t!("config_editor.free_camera"));
+                                ui.checkbox(&mut cfg.enabled, "");
+                                ui.end_row();
+
+                                ui.label(t!("free_camera.remove_camera_effects"));
+                                ui.checkbox(&mut cfg.remove_camera_effects, "");
+                                ui.end_row();
+
+                                ui.label(t!("free_camera.show_overlay"));
+                                ui.checkbox(&mut cfg.show_overlay, "");
+                                ui.end_row();
+
+                                ui.label(t!("free_camera.selfie_use_head_transform"));
+                                ui.checkbox(&mut cfg.selfie_use_head_transform, "");
+                                ui.end_row();
+
+                                ui.label(t!("free_camera.mode"));
+                                Gui::run_combo(ui, "free_camera_mode", &mut cfg.mode, &mode_choices);
+                                ui.end_row();
+
+                                ui.label(t!("free_camera.live_move_step"));
+                                ui.add(egui::DragValue::new(&mut cfg.live_move_step).speed(0.01).range(0.001..=100.0));
+                                ui.end_row();
+
+                                ui.label(t!("free_camera.race_move_step"));
+                                ui.add(egui::DragValue::new(&mut cfg.race_move_step).speed(0.1).range(0.001..=100.0));
+                                ui.end_row();
+
+                                ui.label(t!("free_camera.look_step"));
+                                ui.add(egui::DragValue::new(&mut cfg.look_step).speed(0.05).range(0.001..=30.0));
+                                ui.end_row();
+
+                                #[cfg(target_os = "windows")]
+                                {
+                                    ui.label(t!("free_camera.mouse_speed"));
+                                    ui.add(egui::DragValue::new(&mut cfg.mouse_speed).speed(1.0).range(1.0..=1000.0));
+                                    ui.end_row();
+                                }
+
+                                ui.label(t!("free_camera.live_fov"));
+                                ui.add(egui::DragValue::new(&mut cfg.live_fov).speed(0.5).range(1.0..=120.0));
+                                ui.end_row();
+
+                                ui.label(t!("free_camera.race_fov"));
+                                ui.add(egui::DragValue::new(&mut cfg.race_fov).speed(0.5).range(1.0..=120.0));
+                                ui.end_row();
+
+                                ui.label(t!("free_camera.gamepad_deadzone"));
+                                ui.add(egui::Slider::new(&mut cfg.gamepad_deadzone, 0.0..=0.8).step_by(0.01));
+                                ui.end_row();
+
+                                ui.label(t!("free_camera.gamepad_move_speed"));
+                                ui.add(egui::DragValue::new(&mut cfg.gamepad_move_speed).speed(0.05).range(0.1..=10.0));
+                                ui.end_row();
+
+                                ui.label(t!("free_camera.gamepad_look_speed"));
+                                ui.add(egui::DragValue::new(&mut cfg.gamepad_look_speed).speed(0.05).range(0.1..=10.0));
+                                ui.end_row();
+
+                                ui.strong(t!("free_camera.section_live"));
+                                ui.label("");
+                                ui.end_row();
+
+                                ui.label(t!("free_camera.live_disable_character_teleport"));
+                                ui.checkbox(&mut cfg.live_disable_character_teleport, "");
+                                ui.end_row();
+
+                                ui.label(t!("free_camera.live_force_all_characters_visible"));
+                                ui.checkbox(&mut cfg.live_force_all_characters_visible, "");
+                                ui.end_row();
+
+                                ui.label(t!("free_camera.live_target_position"));
+                                Gui::run_combo(ui, "free_camera_live_target_position", &mut cfg.live_target_position_index, &live_position_choices);
+                                ui.end_row();
+
+                                ui.label(t!("free_camera.live_target_part"));
+                                Gui::run_combo(ui, "free_camera_live_target_part", &mut cfg.live_target_part_index, &live_part_choices);
+                                ui.end_row();
+
+                                ui.label(t!("free_camera.live_selfie_horizontal_stabilization"));
+                                ui.add(egui::DragValue::new(&mut cfg.live_selfie_horizontal_stabilization).speed(0.01).range(0.0..=5.0));
+                                ui.end_row();
+
+                                ui.label(t!("free_camera.live_selfie_vertical_stabilization"));
+                                ui.add(egui::DragValue::new(&mut cfg.live_selfie_vertical_stabilization).speed(0.01).range(0.0..=5.0));
+                                ui.end_row();
+
+                                ui.label(t!("free_camera.live_follow_smooth"));
+                                ui.checkbox(&mut cfg.live_follow_smooth, "");
+                                ui.end_row();
+
+                                ui.label(t!("free_camera.live_follow_smooth_pos_step"));
+                                ui.add(egui::DragValue::new(&mut cfg.live_follow_smooth_pos_step).speed(0.01).range(0.02..=1.0));
+                                ui.end_row();
+
+                                ui.label(t!("free_camera.live_follow_smooth_lookat_step"));
+                                ui.add(egui::DragValue::new(&mut cfg.live_follow_smooth_lookat_step).speed(0.01).range(0.02..=1.0));
+                                ui.end_row();
+
+                                ui.strong(t!("free_camera.section_race"));
+                                ui.label("");
+                                ui.end_row();
+
+                                ui.label(t!("free_camera.race_target_index"));
+                                ui.add(egui::DragValue::new(&mut cfg.race_target_index).speed(1.0).range(-1..=17));
+                                ui.end_row();
+
+                                #[cfg(target_os = "windows")]
+                                {
+                                    ui.strong(t!("free_camera.section_keybinds"));
+                                    ui.label("");
+                                    ui.end_row();
+
+                                    macro_rules! keybind_row {
+                                        ($field:ident, $key:literal) => {{
+                                            let setter: fn(&mut free_camera::FreeCameraKeybinds, u16) =
+                                                |keybinds, raw| keybinds.$field = raw;
+                                            Self::keybind_row(
+                                                ui,
+                                                t!($key),
+                                                cfg.keybinds.$field,
+                                                setter,
+                                            );
+                                        }};
+                                    }
+
+                                    keybind_row!(move_forward, "free_camera.key_move_forward");
+                                    keybind_row!(move_back, "free_camera.key_move_back");
+                                    keybind_row!(move_left, "free_camera.key_move_left");
+                                    keybind_row!(move_right, "free_camera.key_move_right");
+                                    keybind_row!(move_down, "free_camera.key_move_down");
+                                    keybind_row!(move_up, "free_camera.key_move_up");
+                                    keybind_row!(look_up, "free_camera.key_look_up");
+                                    keybind_row!(look_down, "free_camera.key_look_down");
+                                    keybind_row!(look_left, "free_camera.key_look_left");
+                                    keybind_row!(look_right, "free_camera.key_look_right");
+                                    keybind_row!(fov_increase, "free_camera.key_fov_increase");
+                                    keybind_row!(fov_decrease, "free_camera.key_fov_decrease");
+                                    keybind_row!(follow_offset_up, "free_camera.key_follow_offset_up");
+                                    keybind_row!(follow_offset_down, "free_camera.key_follow_offset_down");
+                                    keybind_row!(follow_offset_left, "free_camera.key_follow_offset_left");
+                                    keybind_row!(follow_offset_right, "free_camera.key_follow_offset_right");
+                                    keybind_row!(target_previous, "free_camera.key_target_previous");
+                                    keybind_row!(target_next, "free_camera.key_target_next");
+                                    keybind_row!(part_previous, "free_camera.key_part_previous");
+                                    keybind_row!(part_next, "free_camera.key_part_next");
+                                    keybind_row!(reset, "free_camera.key_reset");
+                                    keybind_row!(cycle_mode, "free_camera.key_cycle_mode");
+                                    keybind_row!(reverse, "free_camera.key_reverse");
+                                }
+                            });
+                        });
+                    });
+
+                ui.separator();
+
+                ui.with_layout(egui::Layout::left_to_right(egui::Align::Min), |ui| {
+                    if ui.button(t!("config_editor.restore_defaults")).clicked() {
+                        reset_clicked = true;
+                    }
+
+                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Min), |ui| {
+                        if ui.button(t!("cancel")).clicked() {
+                            open2 = false;
+                        }
+                        if ui.button(t!("save")).clicked() {
+                            save_clicked = true;
+                            open2 = false;
+                        }
+                    });
+                });
+            });
+        });
+
+        if reset_clicked {
+            self.config.free_camera = free_camera::FreeCameraConfig::default();
+        }
 
         if save_clicked {
             save_and_reload_config(self.config.clone());
@@ -4693,7 +5130,7 @@ impl Window for TranslationRepoInfoWindow {
                         ui.add_space(6.0 * scale);
                         egui::Grid::new(self.id.with("info_grid"))
                             .num_columns(2)
-                            .min_col_width(80.0 * scale)
+                            .min_col_width(95.0 * scale)
                             .spacing([12.0 * scale, 6.0 * scale])
                             .show(ui, |ui| {
                                 if !info.homepage.is_empty() {
