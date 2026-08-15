@@ -21,26 +21,11 @@ pub fn set_keyboard_visible(visible: bool) {
         return;
     };
 
+    let api_level = crate::android::hook::cached_api_level();
+
     let result = (|| -> jni::errors::Result<()> {
         let activity = get_activity(unsafe { env.unsafe_clone() })
             .ok_or(jni::errors::Error::JavaException)?;
-
-        // get InputMethodManager: context.getSystemService(Context.INPUT_METHOD_SERVICE)
-        let context_class = env.find_class("android/content/Context")?;
-        let imm_service_name = env.get_static_field(context_class, "INPUT_METHOD_SERVICE", "Ljava/lang/String;")?.l()?;
-        if imm_service_name.is_null() {
-            return Err(jni::errors::Error::JavaException);
-        }
-
-        let imm = env.call_method(
-            &activity, 
-            "getSystemService", 
-            "(Ljava/lang/String;)Ljava/lang/Object;", 
-            &[JValue::from(&imm_service_name)]
-        )?.l()?;
-        if imm.is_null() {
-            return Err(jni::errors::Error::JavaException);
-        }
 
         let window = env.call_method(&activity, "getWindow", "()Landroid/view/Window;", &[])?.l()?;
         if window.is_null() {
@@ -51,41 +36,63 @@ pub fn set_keyboard_visible(visible: bool) {
             return Err(jni::errors::Error::JavaException);
         }
 
-        if visible {
-            let focus_view = env.call_method(&window, "getCurrentFocus", "()Landroid/view/View;", &[])?.l()?;
-            let target_view = if !focus_view.is_null() { &focus_view } else { &decor_view };
-
-            // show: imm.showSoftInput(view, flags)
-            // SHOW_IMPLICIT (1) or SHOW_FORCED (2)
-            let shown = env.call_method(
-                &imm, 
-                "showSoftInput", 
-                "(Landroid/view/View;I)Z", 
-                &[JValue::from(target_view), JValue::Int(2)]
-            )?.z()?;
-
-            if !shown {
-                env.call_method(
-                    &imm, 
-                    "toggleSoftInput", 
-                    "(II)V", 
-                    &[JValue::Int(2), JValue::Int(1)]
-                )?;
+        if api_level >= 30 {
+            let controller = env.call_method(
+                &window,
+                "getInsetsController",
+                "()Landroid/view/WindowInsetsController;",
+                &[],
+            )?.l()?;
+            if controller.is_null() {
+                return Err(jni::errors::Error::JavaException);
             }
-            IS_IME_VISIBLE.store(true, Ordering::Release);
+            let ime_type: i32 = 8;
+            if visible {
+                env.call_method(&controller, "show", "(I)V", &[JValue::Int(ime_type)])?;
+            } else {
+                env.call_method(&controller, "hide", "(I)V", &[JValue::Int(ime_type)])?;
+            }
         } else {
-            let window_token = env.call_method(&decor_view, "getWindowToken", "()Landroid/os/IBinder;", &[])?.l()?;
-            if !window_token.is_null() {
-                // hide: imm.hideSoftInputFromWindow(token, flags)
-                env.call_method(
-                    &imm, 
-                    "hideSoftInputFromWindow", 
-                    "(Landroid/os/IBinder;I)Z", 
-                    &[JValue::from(&window_token), JValue::Int(0)]
-                )?;
+            let context_class = env.find_class("android/content/Context")?;
+            let imm_service_name = env.get_static_field(context_class, "INPUT_METHOD_SERVICE", "Ljava/lang/String;")?.l()?;
+            if imm_service_name.is_null() {
+                return Err(jni::errors::Error::JavaException);
             }
-            IS_IME_VISIBLE.store(false, Ordering::Release);
+            let imm = env.call_method(
+                &activity,
+                "getSystemService",
+                "(Ljava/lang/String;)Ljava/lang/Object;",
+                &[JValue::from(&imm_service_name)],
+            )?.l()?;
+            if imm.is_null() {
+                return Err(jni::errors::Error::JavaException);
+            }
+            if visible {
+                let focus_view = env.call_method(&window, "getCurrentFocus", "()Landroid/view/View;", &[])?.l()?;
+                let target_view = if !focus_view.is_null() { &focus_view } else { &decor_view };
+                let shown = env.call_method(
+                    &imm,
+                    "showSoftInput",
+                    "(Landroid/view/View;I)Z",
+                    &[JValue::from(target_view), JValue::Int(1)],
+                )?.z()?;
+                if !shown {
+                    env.call_method(&imm, "showSoftInput", "(Landroid/view/View;I)Z",
+                        &[JValue::from(target_view), JValue::Int(2)])?;
+                }
+            } else {
+                let window_token = env.call_method(&decor_view, "getWindowToken", "()Landroid/os/IBinder;", &[])?.l()?;
+                if !window_token.is_null() {
+                    env.call_method(
+                        &imm,
+                        "hideSoftInputFromWindow",
+                        "(Landroid/os/IBinder;I)Z",
+                        &[JValue::from(&window_token), JValue::Int(0)],
+                    )?;
+                }
+            }
         }
+        IS_IME_VISIBLE.store(visible, Ordering::Release);
         Ok(())
     })();
 
@@ -106,33 +113,30 @@ pub fn check_keyboard_status() -> bool {
         Ok(e) => e,
         Err(_) => return false,
     };
-    let api_level = get_device_api_level(env.get_native_interface());
+    let api_level = crate::android::hook::cached_api_level();
 
     let is_visible = (|| -> jni::errors::Result<bool> {
         let activity = get_activity(unsafe { env.unsafe_clone() }).ok_or(jni::errors::Error::JavaException)?;
         let window = env.call_method(&activity, "getWindow", "()Landroid/view/Window;", &[])?.l()?;
-        let decor_view = env.call_method(window, "getDecorView", "()Landroid/view/View;", &[])?.l()?;
+        let decor_view = env.call_method(&window, "getDecorView", "()Landroid/view/View;", &[])?.l()?;
 
         if api_level >= 30 {
-            // Android 11+
             let root_insets = env.call_method(&decor_view, "getRootWindowInsets", "()Landroid/view/WindowInsets;", &[])?.l()?;
             if !root_insets.is_null() {
-                let ime_type = 8; // WindowInsets.Type.ime()
-                return env.call_method(root_insets, "isVisible", "(I)Z", &[JValue::Int(ime_type)])?.z();
+                let ime_type = 8;
+                return env.call_method(&root_insets, "isVisible", "(I)Z", &[JValue::Int(ime_type)])?.z();
             }
-        } 
-        
-        // fallback for Android < 11: check Rect height difference
+            return Ok(false);
+        }
+
         let rect_class = env.find_class("android/graphics/Rect")?;
         let rect_obj = env.new_object(&rect_class, "()V", &[])?;
         env.call_method(&decor_view, "getWindowVisibleDisplayFrame", "(Landroid/graphics/Rect;)V", &[JValue::from(&rect_obj)])?;
-        
         let display_height = env.call_method(&decor_view, "getHeight", "()I", &[])?.i()?;
         let visible_bottom = env.get_field(&rect_obj, "bottom", "I")?.i()?;
-        
-        // if the gap between bottom of screen and bottom of visible area is > 200dp, keyboard is likely up
+
         let height_diff = display_height - visible_bottom;
-        Ok(height_diff > (display_height / 4)) // using 25% of screen as threshold
+        Ok(height_diff > (display_height / 4))
     })();
 
     let is_visible = match is_visible {
@@ -199,9 +203,14 @@ pub fn open_app_or_fallback(package_name: &str, activity_class: &str, fallback_u
                 let _ = env.exception_clear();
 
                 if let Ok(msg_obj) = env.call_method(ex, "toString", "()Ljava/lang/String;", &[]) {
-                    let msg_jstr: JString = msg_obj.l().unwrap().into();
-                    let msg_rust: String = env.get_string(&msg_jstr).unwrap().into();
-                    info!("open_app_or_fallback: Java Exception: {}", msg_rust);
+                    if let Ok(msg_jstr_obj) = msg_obj.l() {
+                        let msg_jstr: JString = msg_jstr_obj.into();
+                        let msg_rust = env.get_string(&msg_jstr);
+                        if let Ok(msg_rust) = msg_rust {
+                            let msg_str: String = msg_rust.into();
+                            info!("open_app_or_fallback: Java Exception: {}", msg_str);
+                        }
+                    }
                 }
             }
         }
@@ -213,12 +222,12 @@ pub fn open_app_or_fallback(package_name: &str, activity_class: &str, fallback_u
 }
 
 pub fn get_activity(mut env: JNIEnv<'_>) -> Option<JObject<'_>> {
-    // 1. Try to get current activity from UnityPlayer
     let mut unity_activity = None;
     if let Ok(unity_player_class) = env.find_class("com/unity3d/player/UnityPlayer") {
         if let Ok(current_activity_val) = env.get_static_field(unity_player_class, "currentActivity", "Landroid/app/Activity;") {
             if let Ok(current_activity) = current_activity_val.l() {
                 if !current_activity.is_null() {
+                    info!("get_activity: Found UnityPlayer.currentActivity");
                     unity_activity = Some(current_activity);
                 }
             }
@@ -229,33 +238,41 @@ pub fn get_activity(mut env: JNIEnv<'_>) -> Option<JObject<'_>> {
         return Some(activity);
     }
     
-    // Clear any potential ClassNotFoundException or other exception from the UnityPlayer lookup
     if env.exception_check().unwrap_or(false) {
         let _ = env.exception_clear();
     }
 
-    // 2. Try to get current activity from ActivityThread
-    let mut activity_thread_activity = None;
-    if let Ok(activity_thread_class) = env.find_class("android/app/ActivityThread") {
-        if let Ok(activity_thread_val) = env.call_static_method(
-            activity_thread_class,
-            "currentActivityThread",
-            "()Landroid/app/ActivityThread;",
-            &[],
+    debug!("get_activity: Trying ActivityThread fallback");
+    if let Ok(at_class) = env.find_class("android/app/ActivityThread") {
+        if env.exception_check().unwrap_or(false) { let _ = env.exception_clear(); }
+        if let Ok(at_val) = env.call_static_method(
+            &at_class, "currentActivityThread", "()Landroid/app/ActivityThread;", &[]
         ) {
-            if let Ok(activity_thread) = activity_thread_val.l() {
-                if !activity_thread.is_null() {
-                    if let Ok(activities_val) = env.get_field(activity_thread, "mActivities", "Landroid/util/ArrayMap;") {
+            if let Ok(at) = at_val.l() {
+                if !at.is_null() {
+                    debug!("get_activity: Got ActivityThread instance");
+                    if let Ok(act_val) = env.call_method(&at, "currentActivity", "()Landroid/app/Activity;", &[]) {
+                        if let Ok(act) = act_val.l() {
+                            if !act.is_null() {
+                                info!("get_activity: Found via currentActivity()");
+                                return Some(act);
+                            }
+                        }
+                    }
+                    if env.exception_check().unwrap_or(false) { let _ = env.exception_clear(); }
+
+                    if let Ok(activities_val) = env.get_field(&at, "mActivities", "Landroid/util/ArrayMap;") {
                         if let Ok(activities) = activities_val.l() {
                             if !activities.is_null() {
+                                debug!("get_activity: Iterating mActivities map");
                                 if let Ok(activities_map) = JMap::from_env(&mut env, &activities) {
                                     if let Ok(mut iter) = activities_map.iter(&mut env) {
-                                        while let Ok(Some((_, activity_record))) = iter.next(&mut env) {
-                                            if let Ok(activity_val) = env.get_field(activity_record, "activity", "Landroid/app/Activity;") {
-                                                if let Ok(activity) = activity_val.l() {
-                                                    if !activity.is_null() {
-                                                        activity_thread_activity = Some(activity);
-                                                        break;
+                                        while let Ok(Some((_, record))) = iter.next(&mut env) {
+                                            if let Ok(av) = env.get_field(&record, "activity", "Landroid/app/Activity;") {
+                                                if let Ok(act) = av.l() {
+                                                    if !act.is_null() {
+                                                        info!("get_activity: Found activity in mActivities");
+                                                        return Some(act);
                                                     }
                                                 }
                                             }
@@ -265,18 +282,17 @@ pub fn get_activity(mut env: JNIEnv<'_>) -> Option<JObject<'_>> {
                             }
                         }
                     }
+                    if env.exception_check().unwrap_or(false) { let _ = env.exception_clear(); }
                 }
             }
         }
     }
 
-    if let Some(activity) = activity_thread_activity {
-        return Some(activity);
-    }
-
     if env.exception_check().unwrap_or(false) {
         let _ = env.exception_clear();
     }
+    
+    warn!("get_activity: Failed to retrieve Activity from any source");
     None
 }
 
@@ -290,27 +306,104 @@ pub fn get_device_api_level(env: *mut jni::sys::JNIEnv) -> i32 {
         .unwrap_or(0)
 }
 
+pub fn get_safe_insets_jni() -> (f32, f32) {
+    let Some(vm) = java_vm() else { return (0.0, 0.0); };
+    let Ok(mut env) = vm.attach_current_thread_as_daemon() else { return (0.0, 0.0); };
+
+    let is_ok = (|| -> jni::errors::Result<(f32, f32)> {
+        let activity = get_activity(unsafe { env.unsafe_clone() }).ok_or(jni::errors::Error::JavaException)?;
+        let window = env.call_method(&activity, "getWindow", "()Landroid/view/Window;", &[])?.l()?;
+        if window.is_null() { return Err(jni::errors::Error::JavaException); }
+        let decor_view = env.call_method(&window, "getDecorView", "()Landroid/view/View;", &[])?.l()?;
+        if decor_view.is_null() { return Err(jni::errors::Error::JavaException); }
+        let insets = env.call_method(&decor_view, "getRootWindowInsets", "()Landroid/view/WindowInsets;", &[])?.l()?;
+        if insets.is_null() { return Err(jni::errors::Error::JavaException); }
+
+        let api_level = crate::android::hook::cached_api_level();
+        if api_level >= 28 {
+            let cutout = env.call_method(&insets, "getDisplayCutout", "()Landroid/view/DisplayCutout;", &[])?.l()?;
+            if !cutout.is_null() {
+                let top = env.call_method(&cutout, "getSafeInsetTop", "()I", &[])?.i()? as f32;
+                let bottom = env.call_method(&cutout, "getSafeInsetBottom", "()I", &[])?.i()? as f32;
+                return Ok((top, bottom));
+            }
+        }
+        Ok((0.0, 0.0))
+    })();
+
+    match is_ok {
+        Ok(insets) => insets,
+        Err(_) => {
+            if env.exception_check().unwrap_or(false) {
+                let _ = env.exception_clear();
+            }
+            (0.0, 0.0)
+        }
+    }
+}
+
 pub fn get_screen_dimensions(mut env: JNIEnv) -> (i32, i32) {
-    let Some(activity) = get_activity(unsafe { env.unsafe_clone() }) else { return (0, 0) };
+    let Some(activity) = get_activity(unsafe { env.unsafe_clone() }) else { 
+        warn!("get_screen_dimensions: Activity not available, returning default (0, 0)");
+        return (0, 0) 
+    };
 
     let result = (|| -> jni::errors::Result<(i32, i32)> {
-        let wm = env.call_method(activity, "getWindowManager", "()Landroid/view/WindowManager;", &[])?.l()?;
-        let display = env.call_method(wm, "getDefaultDisplay", "()Landroid/view/Display;", &[])?.l()?;
+        let api_level = crate::android::hook::cached_api_level();
+        info!("get_screen_dimensions: API level {}", api_level);
 
-        let dm_class = env.find_class("android/util/DisplayMetrics")?;
-        let dm = env.new_object(dm_class, "()V", &[])?;
-
-        env.call_method(display, "getRealMetrics", "(Landroid/util/DisplayMetrics;)V", &[JValue::from(&dm)])?;
-
-        let width = env.get_field(&dm, "widthPixels", "I")?.i()?;
-        let height = env.get_field(&dm, "heightPixels", "I")?.i()?;
-
-        Ok((width, height))
+        if api_level >= 30 {
+            let wm = env.call_method(&activity, "getWindowManager", "()Landroid/view/WindowManager;", &[])?.l()?;
+            if wm.is_null() {
+                warn!("get_screen_dimensions: WindowManager is null (API 30+)");
+                return Err(jni::errors::Error::JavaException);
+            }
+            let metrics = env.call_method(&wm, "getCurrentWindowMetrics", "()Landroid/view/WindowMetrics;", &[])?.l()?;
+            if metrics.is_null() {
+                warn!("get_screen_dimensions: WindowMetrics is null");
+                return Err(jni::errors::Error::JavaException);
+            }
+            let bounds = env.call_method(&metrics, "getBounds", "()Landroid/graphics/Rect;", &[])?.l()?;
+            if bounds.is_null() {
+                warn!("get_screen_dimensions: Rect bounds is null");
+                return Err(jni::errors::Error::JavaException);
+            }
+            let width  = env.get_field(&bounds, "right",  "I")?.i()?;
+            let height = env.get_field(&bounds, "bottom", "I")?.i()?;
+            info!("get_screen_dimensions (API 30+): {}x{}", width, height);
+            Ok((width, height))
+        } else {
+            let wm      = env.call_method(&activity, "getWindowManager", "()Landroid/view/WindowManager;", &[])?.l()?;
+            if wm.is_null() {
+                warn!("get_screen_dimensions: WindowManager is null (API <30)");
+                return Err(jni::errors::Error::JavaException);
+            }
+            let display = env.call_method(&wm, "getDefaultDisplay", "()Landroid/view/Display;", &[])?.l()?;
+            if display.is_null() {
+                warn!("get_screen_dimensions: Display is null");
+                return Err(jni::errors::Error::JavaException);
+            }
+            let dm_class = env.find_class("android/util/DisplayMetrics")?;
+            let dm       = env.new_object(dm_class, "()V", &[])?;
+            env.call_method(&display, "getRealMetrics", "(Landroid/util/DisplayMetrics;)V", &[JValue::from(&dm)])?;
+            let width  = env.get_field(&dm, "widthPixels",  "I")?.i()?;
+            let height = env.get_field(&dm, "heightPixels", "I")?.i()?;
+            info!("get_screen_dimensions (API <30): {}x{}", width, height);
+            Ok((width, height))
+        }
     })();
 
     match result {
-        Ok(dims) => dims,
-        Err(_) => {
+        Ok(dims) => {
+            if dims.0 == 0 || dims.1 == 0 {
+                error!("get_screen_dimensions: Invalid dimensions received: {}x{}", dims.0, dims.1);
+                (0, 0)
+            } else {
+                dims
+            }
+        }
+        Err(e) => {
+            error!("get_screen_dimensions: Failed to retrieve dimensions: {:?}", e);
             if env.exception_check().unwrap_or(false) {
                 let _ = env.exception_clear();
             }
@@ -328,7 +421,7 @@ pub fn set_audio_capture_policy_all() {
     };
 
     let result = (|| -> jni::errors::Result<()> {
-        let api_level = get_device_api_level(env.get_native_interface());
+        let api_level = crate::android::hook::cached_api_level();
         if api_level < 29 {
             info!("setAllowedCapturePolicy ignored: API level {} is below 29", api_level);
             return Ok(());

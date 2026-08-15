@@ -1,10 +1,11 @@
 use std::{
     ffi::CStr,
-    os::raw::{c_char, c_int, c_void}
+    os::raw::{c_char, c_int, c_void},
+    sync::atomic::{AtomicBool, AtomicI32, AtomicUsize, Ordering}
 };
 
-use log::{info, warn};
-use jni::sys::{jint, JNINativeMethod, JNIEnv, jclass};
+use log::{error, info, warn};
+use jni::sys::{jint, JNINativeMethod, jclass};
 
 use crate::{android::gui_impl::input_hook, core::{Error, Hachimi, Interceptor}};
 use super::utils;
@@ -15,6 +16,12 @@ const LINKER_MODULE: &str = if cfg!(target_pointer_width = "64") {
     "linker"
 };
 
+static CACHED_API_LEVEL: AtomicI32 = AtomicI32::new(-1);
+
+pub fn cached_api_level() -> i32 {
+    CACHED_API_LEVEL.load(Ordering::Acquire)
+}
+
 type DlopenFn = extern "C" fn(filename: *const c_char, flags: c_int) -> *mut c_void;
 extern "C" fn dlopen(filename: *const c_char, flags: c_int) -> *mut c_void {
     let hachimi = Hachimi::instance();
@@ -23,13 +30,11 @@ extern "C" fn dlopen(filename: *const c_char, flags: c_int) -> *mut c_void {
     };
 
     let handle = orig_fn(filename, flags);
-    if filename.is_null() {
-        return handle;
-    }
-
-    let filename_str = unsafe { CStr::from_ptr(filename).to_string_lossy() };
-    if hachimi.on_dlopen(&filename_str, handle as usize) {
-        crate::core::hook_utils::defer_unhook(dlopen as usize);
+    if !hachimi.hooking_finished.load(Ordering::Relaxed) && !filename.is_null() {
+        let filename_str = unsafe { CStr::from_ptr(filename).to_string_lossy() };
+        if hachimi.on_dlopen(&filename_str, handle as usize) {
+            hachimi.interceptor.unhook(dlopen as usize);
+        }
     }
 
     handle
@@ -43,42 +48,62 @@ extern "C" fn do_dlopen(filename: *const c_char, flags: c_int, extinfo: *const c
     };
 
     let handle = orig_fn(filename, flags, extinfo, caller_addr);
-    if filename.is_null() {
-        return handle;
-    }
-
-    let filename_str = unsafe { CStr::from_ptr(filename).to_string_lossy() };
-    if hachimi.on_dlopen(&filename_str, handle as usize) {
-        crate::core::hook_utils::defer_unhook(do_dlopen as usize);
+    if !hachimi.hooking_finished.load(Ordering::Relaxed) && !filename.is_null() {
+        let filename_str = unsafe { CStr::from_ptr(filename).to_string_lossy() };
+        if hachimi.on_dlopen(&filename_str, handle as usize) {
+            hachimi.interceptor.unhook(do_dlopen as usize);
+        }
     }
 
     handle
 }
 
-type RegisterNativesFn = extern "C" fn(env: JNIEnv, class: jclass, methods: *const JNINativeMethod, count: jint) -> jint;
-#[allow(non_snake_case)]
-extern "C" fn JNINativeInterface_RegisterNatives(env: JNIEnv, class: jclass, methods_: *const JNINativeMethod, count: jint) -> jint {
-    let hachimi = Hachimi::instance();
-    let orig_fn: RegisterNativesFn = unsafe {
-        std::mem::transmute(hachimi.interceptor.get_trampoline_addr(JNINativeInterface_RegisterNatives as usize))
-    };
+type RegisterNativesFn = unsafe extern "system" fn(
+    env: *mut *const jni::sys::JNINativeInterface_,
+    class: jclass,
+    methods: *const JNINativeMethod,
+    count: jint,
+) -> jint;
 
-    let methods = unsafe { std::slice::from_raw_parts(methods_, count as usize) };
-    for method in methods {
-        if method.name.is_null() { continue; }
-        let name = unsafe { CStr::from_ptr(method.name).to_string_lossy() };
-        if name == "nativeInjectEvent" {
-            info!("Got nativeInjectEvent address");
-            unsafe { input_hook::NATIVE_INJECT_EVENT_ADDR = method.fnPtr as usize; };
-            hachimi.interceptor.unhook(JNINativeInterface_RegisterNatives as usize);
+static ORIG_REGISTER_NATIVES: AtomicUsize = AtomicUsize::new(0);
+
+#[allow(non_snake_case)]
+extern "system" fn JNINativeInterface_RegisterNatives(
+    env: *mut *const jni::sys::JNINativeInterface_,
+    class: jclass,
+    methods_: *const JNINativeMethod,
+    count: jint,
+) -> jint {
+    static GOT_EVENT: AtomicBool = AtomicBool::new(false);
+    if !GOT_EVENT.load(Ordering::Relaxed) {
+        let methods = unsafe { std::slice::from_raw_parts(methods_, count as usize) };
+        for method in methods {
+            if method.name.is_null() { continue; }
+            let name = unsafe { CStr::from_ptr(method.name).to_string_lossy() };
+            if name == "nativeInjectEvent" {
+                info!("Got nativeInjectEvent address");
+                unsafe {
+                    input_hook::NATIVE_INJECT_EVENT_ADDR = method.fnPtr as usize;
+                }
+                GOT_EVENT.store(true, Ordering::Relaxed);
+                break;
+            }
         }
     }
 
-    orig_fn(env, class, methods_, count)
+    let orig_addr = ORIG_REGISTER_NATIVES.load(Ordering::Acquire);
+    if orig_addr != 0 {
+        let orig_fn: RegisterNativesFn = unsafe { std::mem::transmute(orig_addr) };
+        unsafe { orig_fn(env, class, methods_, count) }
+    } else {
+        jni::sys::JNI_ERR
+    }
 }
+
 
 fn init_internal(env: *mut jni::sys::JNIEnv) -> Result<(), Error> {
     let api_level = utils::get_device_api_level(env);
+    CACHED_API_LEVEL.store(api_level, Ordering::Release);
     info!("API level: {}", api_level);
 
     let hachimi = Hachimi::instance();
@@ -92,26 +117,16 @@ fn init_internal(env: *mut jni::sys::JNIEnv) -> Result<(), Error> {
 
     const DO_DLOPEN_V24: &str = "__dl__Z9do_dlopenPKciPK17android_dlextinfoPv";  // A7, A7.1
     const DO_DLOPEN_V26: &str = "__dl__Z9do_dlopenPKciPK17android_dlextinfoPKv"; // A8 or later
-    if !force_hook_dlopen && api_level > 0 {
-        let sym_to_find = if api_level >= 26 {
-            Some(DO_DLOPEN_V26)
-        } else if api_level >= 24 {
-            Some(DO_DLOPEN_V24)
-        } else {
-            None
-        };
-
-        if let Some(sym_name) = sym_to_find {
-            match Interceptor::find_symbol_by_name(LINKER_MODULE, sym_name) {
-                Ok(addr) => {
-                    dlopen_orig = addr;
-                    dlopen_hook = do_dlopen as _;
-                    dlopen_name = sym_name;
-                }
-                Err(e) => {
-                    warn!("Failed to find linker symbol {}: {}, falling back to libc::dlopen", sym_name, e);
-                }
-            }
+    if !force_hook_dlopen {
+        if api_level >= 26 {
+            dlopen_orig = Interceptor::find_symbol_by_name(LINKER_MODULE, DO_DLOPEN_V26)?;
+            dlopen_hook = do_dlopen as _;
+            dlopen_name = DO_DLOPEN_V26;
+        }
+        else if api_level >= 24 {
+            dlopen_orig = Interceptor::find_symbol_by_name(LINKER_MODULE, DO_DLOPEN_V24)?;
+            dlopen_hook = do_dlopen as _;
+            dlopen_name = DO_DLOPEN_V24;
         }
     }
 
@@ -119,17 +134,46 @@ fn init_internal(env: *mut jni::sys::JNIEnv) -> Result<(), Error> {
     hachimi.interceptor.hook(dlopen_orig, dlopen_hook)?;
 
     if !hachimi.config.load().disable_gui {
-        info!("Hooking JNINativeInterface RegisterNatives");
-        let register_natives_addr = unsafe { (**env).RegisterNatives.unwrap() as usize };
-        hachimi.interceptor.hook(register_natives_addr, JNINativeInterface_RegisterNatives as usize)?;
+        info!("Hooking JNINativeInterface RegisterNatives via JNI vtable");
+        unsafe {
+            let jni_table = *env as *mut jni::sys::JNINativeInterface_;
+
+            let orig = (*jni_table).RegisterNatives;
+            ORIG_REGISTER_NATIVES.store(orig.map(|f| f as usize).unwrap_or(0), Ordering::Release);
+
+            let page_size = libc::sysconf(libc::_SC_PAGESIZE) as usize;
+            let page_addr = (jni_table as usize) & !(page_size - 1);
+
+            let ret = libc::mprotect(
+                page_addr as *mut c_void,
+                page_size,
+                libc::PROT_READ | libc::PROT_WRITE,
+            );
+            if ret != 0 {
+                let errno = std::io::Error::last_os_error();
+                warn!(
+                    "mprotect(RW) on JNI vtable page failed ({}); \
+                     RegisterNatives hook skipped — nativeInjectEvent won't be intercepted",
+                    errno
+                );
+
+                ORIG_REGISTER_NATIVES.store(0, Ordering::Release);
+                return Ok(());
+            }
+
+            (*jni_table).RegisterNatives = Some(JNINativeInterface_RegisterNatives);
+
+            let ret = libc::mprotect(page_addr as *mut c_void, page_size, libc::PROT_READ);
+            if ret != 0 {
+                let errno = std::io::Error::last_os_error();
+                warn!("mprotect(RO) restore on JNI vtable page failed ({})", errno);
+            }
+        }
     }
 
     Ok(())
 }
 
 pub fn init(env: *mut jni::sys::JNIEnv) {
-    init_internal(env).unwrap_or_else(|e| {
-        error!("Init failed: {}", e);
-        // Do nothing I guess?
-    });
+    init_internal(env).unwrap_or_else(|e| error!("Init failed: {}", e));
 }

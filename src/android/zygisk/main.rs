@@ -1,4 +1,4 @@
-use std::{cell::OnceCell, os::raw::c_long};
+use std::os::raw::c_long;
 
 use jni::{objects::JString, JNIEnv};
 
@@ -11,6 +11,9 @@ pub struct Module {
     is_game: bool
 }
 
+unsafe impl Send for Module {}
+unsafe impl Sync for Module {}
+
 impl Module {
     fn new(env: *mut jni::sys::JNIEnv) -> Self {
         Self {
@@ -20,9 +23,11 @@ impl Module {
     }
 }
 
-static mut PACKAGE_NAME: OnceCell<String> = OnceCell::new();
+use once_cell::sync::OnceCell as SyncOnceCell;
+
+static PACKAGE_NAME: SyncOnceCell<String> = SyncOnceCell::new();
 pub fn get_package_name() -> Option<&'static String> {
-    unsafe { PACKAGE_NAME.get() }
+    PACKAGE_NAME.get()
 }
 
 unsafe extern "C" fn pre_app_specialize(this: *mut Module, args: *mut AppSpecializeArgs) {
@@ -41,7 +46,9 @@ unsafe extern "C" fn post_app_specialize(this: *mut Module, _args: *const AppSpe
             return;
         }
         let hachimi = Hachimi::instance();
-        *hachimi.plugins.lock().unwrap() = plugin_loader::load_libraries();
+        let _ = hachimi.plugins.lock().map(|mut plugins| {
+            *plugins = plugin_loader::load_libraries();
+        });
         hook::init((*this).env);
     }
 }
@@ -54,8 +61,12 @@ unsafe extern "C" fn post_server_specialize(_this: *mut Module, _args: *const Se
 
 }
 
-static mut MODULE: OnceCell<Module> = OnceCell::new();
-static mut ABI: OnceCell<module_abi<Module>> = OnceCell::new();
+struct AbiWrapper(module_abi<Module>);
+unsafe impl Send for AbiWrapper {}
+unsafe impl Sync for AbiWrapper {}
+
+static MODULE: SyncOnceCell<Module> = SyncOnceCell::new();
+static ABI: SyncOnceCell<AbiWrapper> = SyncOnceCell::new();
 
 #[no_mangle]
 pub unsafe extern "C" fn zygisk_module_entry(api: *mut api_table<Module>, env: *mut jni::sys::JNIEnv) {
@@ -64,15 +75,15 @@ pub unsafe extern "C" fn zygisk_module_entry(api: *mut api_table<Module>, env: *
 
     let abi = module_abi {
         api_version: ZYGISK_API_VERSION,
-        impl_: MODULE.get_mut().unwrap(),
+        impl_: MODULE.get().unwrap() as *const Module as *mut Module,
         preAppSpecialize: Some(pre_app_specialize),
         postAppSpecialize: Some(post_app_specialize),
         preServerSpecialize: Some(pre_server_specialize),
         postServerSpecialize: Some(post_server_specialize)
     };
-    if ABI.set(abi).is_err() { return; }
+    if ABI.set(AbiWrapper(abi)).is_err() { return; }
 
-    (*api).registerModule.unwrap()(api, ABI.get_mut().unwrap());
+    (*api).registerModule.unwrap()(api, &ABI.get().unwrap().0 as *const _ as *mut _);
 }
 
 #[no_mangle]

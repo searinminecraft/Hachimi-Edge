@@ -22,12 +22,25 @@ fn resolve_orig_jni_onload() -> Option<JniOnLoadFn> {
     unsafe {
         let handle = libc::dlopen(LIBRARY_NAME.as_ptr(), libc::RTLD_LAZY);
         if handle.is_null() {
-            warn!("JNI_OnLoad: failed to dlopen {}", LIBRARY_NAME.to_string_lossy());
+            let err = libc::dlerror();
+            let err_str = if err.is_null() {
+                "(no dlerror)".into()
+            } else {
+                std::ffi::CStr::from_ptr(err).to_string_lossy()
+            };
+            error!(
+                "JNI_OnLoad: dlopen({}) RTLD_LAZY failed: {}",
+                LIBRARY_NAME.to_string_lossy(),
+                err_str
+            );
             return None;
         }
         let sym = libc::dlsym(handle, JNI_ONLOAD_NAME.as_ptr());
         if sym.is_null() {
-            warn!("JNI_OnLoad: JNI_OnLoad symbol not found in {}", LIBRARY_NAME.to_string_lossy());
+            error!(
+                "JNI_OnLoad: JNI_OnLoad symbol not found in {}",
+                LIBRARY_NAME.to_string_lossy()
+            );
             return None;
         }
         Some(std::mem::transmute(sym))
@@ -45,15 +58,51 @@ pub extern "C" fn JNI_OnLoad(vm: JavaVM, reserved: *mut c_void) -> jint {
     if !Hachimi::init() {
         return orig_fn(vm, reserved);
     }
+    
     let vm_ptr = vm.get_java_vm_pointer();
-    let vm_for_env = unsafe { JavaVM::from_raw(vm_ptr).unwrap() };
-    let _ = JAVA_VM.set(vm);
+    
+    if let Err(_) = JAVA_VM.set(vm) {
+        error!("JAVA_VM already initialized");
+        // Create new wrapper for orig_fn call
+        let vm_for_orig = unsafe { JavaVM::from_raw(vm_ptr).expect("Failed to reconstruct JavaVM") };
+        return orig_fn(vm_for_orig, reserved);
+    }
+    
     let hachimi = Hachimi::instance();
-    *hachimi.plugins.lock().unwrap() = plugin_loader::load_libraries();
-    let env = vm_for_env.get_env().unwrap();
-    hook::init(env.get_raw());
+    
+    match hachimi.plugins.lock() {
+        Ok(mut plugins) => {
+            *plugins = plugin_loader::load_libraries();
+        }
+        Err(e) => {
+            error!("Failed to acquire plugins lock: {:?}", e);
+            let vm_for_orig = unsafe { JavaVM::from_raw(vm_ptr).expect("Failed to reconstruct JavaVM") };
+            return orig_fn(vm_for_orig, reserved);
+        }
+    }
+    
+    match JAVA_VM.get() {
+        Some(stored_vm) => {
+            match stored_vm.get_env() {
+                Ok(env) => {
+                    hook::init(env.get_raw());
+                    info!("JNI_OnLoad: Hooks initialized successfully");
+                }
+                Err(e) => {
+                    error!("Failed to get JNI environment: {:?}", e);
+                    let vm_for_orig = unsafe { JavaVM::from_raw(vm_ptr).expect("Failed to reconstruct JavaVM") };
+                    return orig_fn(vm_for_orig, reserved);
+                }
+            }
+        }
+        None => {
+            error!("Failed to retrieve stored JavaVM reference");
+            let vm_for_orig = unsafe { JavaVM::from_raw(vm_ptr).expect("Failed to reconstruct JavaVM") };
+            return orig_fn(vm_for_orig, reserved);
+        }
+    }
 
-    info!("JNI_OnLoad");
-    let vm_for_orig = unsafe { JavaVM::from_raw(vm_ptr).unwrap() };
+    info!("JNI_OnLoad: Initialization completed successfully");
+    let vm_for_orig = unsafe { JavaVM::from_raw(vm_ptr).expect("Failed to reconstruct JavaVM") };
     orig_fn(vm_for_orig, reserved)
 }

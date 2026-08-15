@@ -20,6 +20,7 @@ extern crate log;
 #[macro_use]
 extern crate cstr;
 
+#[cfg(all(target_os = "windows", target_env = "msvc"))]
 #[global_allocator]
 static GLOBAL: mimalloc::MiMalloc = mimalloc::MiMalloc;
 

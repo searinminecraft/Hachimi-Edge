@@ -15,34 +15,23 @@ pub fn is_criware_lib(filename: &str) -> bool {
     filename.ends_with("libcri_ware_unity.so")
 }
 
-pub fn on_hooking_finished(_hachimi: &Hachimi) {
+pub fn on_hooking_finished(hachimi: &Hachimi) {
+    let config = hachimi.config.load();
+    set_keep_screen_on(config.android.keep_screen_on);
 }
 
 pub fn is_keep_screen_on() -> bool {
     KEEP_SCREEN_ON.load(Ordering::Relaxed)
 }
 
-/// Update the keep-screen-on state.
-///
-/// The primary mechanism is the IL2CPP `Screen.sleepTimeout` hook which
-/// intercepts Unity's own timeout setter and is always called from the
-/// correct thread.  The JNI `Window.addFlags(FLAG_KEEP_SCREEN_ON)` path
-/// is attempted as a best-effort supplement — it may fail silently when
-/// called from a non-UI thread, which is expected.
 pub fn set_keep_screen_on(enable: bool) {
     info!("set_keep_screen_on called (enable={})", enable);
     KEEP_SCREEN_ON.store(enable, Ordering::Relaxed);
 
-    // Primary: set Unity's sleepTimeout (thread-safe, works from any thread)
     crate::il2cpp::hook::UnityEngine_CoreModule::Screen::set_screen_timeout_disabled(enable);
-
-    // Best-effort: set Android Window flag (may fail if not on UI thread)
-    set_keep_screen_on_jni(enable);
 }
 
-/// Best-effort attempt to add/clear `FLAG_KEEP_SCREEN_ON` on the Activity
-/// Window via JNI.  This can fail when called from a non-UI thread; the
-/// IL2CPP sleepTimeout hook is the reliable fallback.
+#[allow(dead_code)]
 fn set_keep_screen_on_jni(enable: bool) {
     let Some(vm) = crate::android::main::java_vm() else {
         info!("JNI Keep Screen On skipped: Java VM unavailable");
