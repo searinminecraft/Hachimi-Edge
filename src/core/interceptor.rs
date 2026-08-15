@@ -66,7 +66,20 @@ impl Interceptor {
             hook.trampoline_addr
         }
         else {
-            warn!("Attempted to get invalid hook: {}", hook_addr);
+            // Suppress repeated warnings about invalid hooks to prevent log spam during rendering
+            // This can happen when IL2CPP callbacks are mistakenly treated as hooks
+            thread_local! {
+                static WARNED_THIS_FRAME: std::cell::RefCell<Vec<usize>> = std::cell::RefCell::new(Vec::new());
+            }
+            
+            WARNED_THIS_FRAME.with(|warned| {
+                let mut w = warned.borrow_mut();
+                if w.len() < 5 && !w.contains(&hook_addr) {
+                    // Only show first 5 unique warnings per thread to prevent spam
+                    debug!("get_trampoline_addr: address not in hook registry {:#x}", hook_addr);
+                    w.push(hook_addr);
+                }
+            });
             0
         }
     }

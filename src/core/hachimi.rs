@@ -528,11 +528,13 @@ impl Hachimi {
         Hachimi::instance().start_bg_update_thread();
         Hachimi::instance().run_auto_update_check();
 
-        for plugin in self.plugins.lock().unwrap().iter() {
-            info!("Initializing plugin: {}", plugin.name);
-            let res = plugin.init();
-            if !res.is_ok() {
-                info!("Plugin init failed");
+        if let Ok(plugins_guard) = self.plugins.lock() {
+            for plugin in plugins_guard.iter() {
+                info!("Initializing plugin: {}", plugin.name);
+                let res = plugin.init();
+                if !res.is_ok() {
+                    info!("Plugin init failed");
+                }
             }
         }
     }

@@ -505,29 +505,75 @@ impl Updater {
         };
 
         let mut new_etag: Option<String> = None;
-        if let Ok(head_res) = ureq::agent().head(index_url).call() {
-            if let Some(etag_val) = head_res.headers().get("ETag") {
-                if let Ok(etag_str) = etag_val.to_str() {
-                    let etag_string = etag_str.to_string();
 
-                    if let Some(skipped) = &*self.skipped_etag.lock().unwrap_or_else(|e| e.into_inner()) {
-                        if !pedantic_main && skipped == &etag_string {
-                            debug!("Server ETag matches the skipped ETag. Ignoring update.");
-                            return Ok(());
-                        }
-                    }
+        // Conditional GET: send If-None-Match with the best known ETag so the server
+        // can reply 304 Not Modified when nothing has changed, avoiding a full index
+        // download on every periodic check.
+        let etag_for_request: Option<String> = repo_cache.index_etag.clone()
+            .or_else(|| self.skipped_etag.lock().unwrap_or_else(|e| e.into_inner()).clone());
 
-                    if let Some(cached_etag) = &repo_cache.index_etag {
-                        if !pedantic_main && cached_etag == &etag_string {
-                            debug!("Server ETag matches cached ETag. Continuing scan for addon-only updates.");
-                        }
-                    }
-                    new_etag = Some(etag_string);
-                }
-            }
+        let mut request = ureq::agent().get(index_url);
+        if let Some(ref etag) = etag_for_request {
+            request = request.header("If-None-Match", etag);
         }
 
-        let index: RepoIndex = http::get_json(index_url)?;
+        let index: RepoIndex = match request.call() {
+            Ok(res) => {
+                // 304 Not Modified — server honoured If-None-Match.
+                // ureq 3 returns this as Ok rather than Err, so check explicitly.
+                if res.status() == ureq::http::StatusCode::NOT_MODIFIED {
+                    info!("Server returned 304 Not Modified. No translation updates available.");
+                    if !silent {
+                        if let Some(mutex) = Gui::instance() {
+                            mutex.lock().unwrap_or_else(|e| e.into_inner())
+                                .show_notification(&t!("notification.no_tl_updates"));
+                        }
+                    }
+                    return Ok(());
+                }
+
+                if let Some(etag_val) = res.headers().get("ETag") {
+                    if let Ok(etag_str) = etag_val.to_str() {
+                        let etag_string = etag_str.to_string();
+
+                        // User previously dismissed this exact version — skip.
+                        if !pedantic_main {
+                            if let Some(skipped) = &*self.skipped_etag.lock().unwrap_or_else(|e| e.into_inner()) {
+                                if skipped == &etag_string {
+                                    debug!("Server ETag matches skipped ETag. Ignoring update.");
+                                    return Ok(());
+                                }
+                            }
+                        }
+
+                        // Fallback for servers that ignore If-None-Match: compare ETag manually.
+                        if !pedantic_main {
+                            if let Some(cached) = &repo_cache.index_etag {
+                                if cached == &etag_string {
+                                    debug!("Server ETag matches cached ETag (server may not support conditional requests). Continuing scan for addon-only updates.");
+                                    // Don't exit — fall through to file scan in case addon has updates.
+                                }
+                            }
+                        }
+
+                        new_etag = Some(etag_string);
+                    }
+                }
+                serde_json::from_reader(res.into_body().into_reader())?
+            }
+            Err(ureq::Error::StatusCode(code)) if code == ureq::http::StatusCode::NOT_MODIFIED => {
+                // Kept as a safety net in case ureq behaviour changes in a future version.
+                info!("Server returned 304 Not Modified. No translation updates available.");
+                if !silent {
+                    if let Some(mutex) = Gui::instance() {
+                        mutex.lock().unwrap_or_else(|e| e.into_inner())
+                            .show_notification(&t!("notification.no_tl_updates"));
+                    }
+                }
+                return Ok(());
+            }
+            Err(e) => return Err(e.into()),
+        };
 
         let is_new_repo = index.base_url != repo_cache.base_url;
         let mut modifies_atlas = false;

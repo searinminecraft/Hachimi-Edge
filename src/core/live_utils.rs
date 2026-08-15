@@ -1,10 +1,12 @@
-use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use crate::{il2cpp::{ext::Il2CppObjectExt, symbols, types::*}};
 
 // Cached IL2CPP pointers — resolved once on first call to move_live_playback.
 static UMAMUSUME_IMAGE: AtomicUsize = AtomicUsize::new(0);
 static DIRECTOR_CLASS: AtomicUsize = AtomicUsize::new(0);
 static AUDIO_MANAGER_CLASS: AtomicUsize = AtomicUsize::new(0);
+static DRAG_WAS_PAUSED: AtomicBool = AtomicBool::new(false);
+static DRAG_IN_PROGRESS: AtomicBool = AtomicBool::new(false);
 
 fn get_umamusume_image() -> Option<*const crate::il2cpp::types::Il2CppImage> {
     let cached = UMAMUSUME_IMAGE.load(Ordering::Relaxed);
@@ -30,6 +32,75 @@ fn get_audio_manager_class() -> Option<*mut crate::il2cpp::types::Il2CppClass> {
     let cls = symbols::get_class(img, c"Gallop", c"AudioManager").ok()?;
     AUDIO_MANAGER_CLASS.store(cls as usize, Ordering::Relaxed);
     Some(cls)
+}
+
+pub fn begin_live_drag() {
+    let dir_class = match get_director_class() {
+        Some(c) => c,
+        None => {
+            DRAG_IN_PROGRESS.store(true, Ordering::Release);
+            return;
+        }
+    };
+
+    let director = match symbols::SingletonLike::new(dir_class) {
+        Some(s) => s.instance(),
+        None => std::ptr::null_mut(),
+    };
+
+    let was_paused = if director.is_null() {
+        true
+    } else {
+        let is_pause_live_addr = symbols::get_method_addr_cached(dir_class, c"IsPauseLive", 0);
+        if is_pause_live_addr != 0 {
+            let is_pause_live: extern "C" fn(*mut Il2CppObject) -> bool =
+                unsafe { std::mem::transmute(is_pause_live_addr) };
+            is_pause_live(director)
+        } else {
+            true
+        }
+    };
+
+    DRAG_WAS_PAUSED.store(was_paused, Ordering::Release);
+
+    if !director.is_null() && !was_paused {
+        let pause_addr = symbols::get_method_addr_cached(dir_class, c"PauseLive", 0);
+        if pause_addr != 0 {
+            let pause_live: extern "C" fn(*mut Il2CppObject) =
+                unsafe { std::mem::transmute(pause_addr) };
+            pause_live(director);
+        }
+    }
+
+    DRAG_IN_PROGRESS.store(true, Ordering::Release);
+}
+
+pub fn end_live_drag() {
+    let was_playing = !DRAG_WAS_PAUSED.load(Ordering::Acquire);
+
+    if was_playing {
+        let dir_class = get_director_class();
+        let director = dir_class
+            .and_then(|c| symbols::SingletonLike::new(c))
+            .map(|s| s.instance());
+
+        if let Some(director) = director.filter(|d| !d.is_null()) {
+            let resume_addr = symbols::get_method_addr_cached(dir_class.unwrap(), c"ResumeLive", 0);
+            if resume_addr != 0 {
+                let resume_live: extern "C" fn(*mut Il2CppObject) =
+                    unsafe { std::mem::transmute(resume_addr) };
+                resume_live(director);
+            }
+        }
+    }
+
+    DRAG_IN_PROGRESS.store(false, Ordering::Release);
+    DRAG_WAS_PAUSED.store(false, Ordering::Release);
+}
+
+pub fn reset_live_drag_state() {
+    DRAG_WAS_PAUSED.store(false, Ordering::Release);
+    DRAG_IN_PROGRESS.store(false, Ordering::Release);
 }
 
 #[repr(C)]
