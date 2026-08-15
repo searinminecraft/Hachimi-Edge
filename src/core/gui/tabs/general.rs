@@ -98,7 +98,6 @@ pub fn render(_editor: &ConfigEditor, config: &mut crate::core::hachimi::Config,
         }
     }
 
-    // Theme Settings
     if ConfigEditor::list_tile_action_button(ui, t!("theme_editor.title"), t!("open")) {
         thread::spawn(|| {
             Gui::instance().unwrap().lock().unwrap_or_else(|e| e.into_inner())

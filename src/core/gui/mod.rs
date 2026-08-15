@@ -179,7 +179,6 @@ impl Gui {
         Application::set_targetFrameRate(fps);
     }
 
-    // Call this from the render thread!
     pub fn instance_or_init(
         #[cfg_attr(target_os = "windows", allow(unused))] open_key_id: &str,
     ) -> &Mutex<Gui> {
@@ -199,7 +198,6 @@ impl Gui {
         context.set_fonts(Self::get_font_definitions());
 
         // Apply spacing/interaction style before theme so that theme visuals
-        // can still be applied without resetting the full Material3 style.
         context.style_mut(|style| {
             style.spacing.button_padding = egui::Vec2::new(8.0, 5.0);
             style.interaction.selectable_labels = false;
@@ -395,6 +393,7 @@ impl Gui {
 
         if !IS_LIVE_SCENE.load(atomic::Ordering::Acquire) {
             IS_LIVE_SLIDER_ACTIVE.store(false, atomic::Ordering::Release);
+            crate::core::live_utils::reset_live_drag_state();
             return;
         }
 
@@ -444,7 +443,6 @@ impl Gui {
                         0,
                     );
 
-                    // SceneManager photo-mode fields
                     if let Ok(sm_class) = crate::il2cpp::symbols::get_class(image, c"Gallop", c"SceneManager") {
                         cache.scene_manager_class = sm_class as usize;
                         cache.scene_manager_get_instance =
@@ -597,29 +595,42 @@ impl Gui {
             };
 
             egui::Area::new(egui::Id::new("live_slider_area"))
-                .anchor(egui::Align2::CENTER_BOTTOM, egui::vec2(0.0, -32.0 * scale))
+                .anchor(egui::Align2::CENTER_BOTTOM, egui::vec2(0.0, -24.0 * scale))
                 .order(egui::Order::Foreground)
                 .show(ctx, |ui| {
                     egui::Frame::NONE
                         .fill(fill)
                         .corner_radius(egui::CornerRadius::same(cr))
                         .shadow(egui::Shadow {
-                            blur:   (8.0 * scale) as u8,
+                            blur:   (6.0 * scale) as u8,
                             spread: 0,
                             offset: [0, (2.0 * scale) as i8],
-                            color:  egui::Color32::from_black_alpha(40),
+                            color:  egui::Color32::from_black_alpha(36),
                         })
                         .inner_margin(egui::Margin::symmetric(
                             (16.0 * scale) as i8,
-                            (10.0 * scale) as i8,
+                            (6.0 * scale) as i8,
                         ))
                         .show(ui, |ui| {
-                            // 80 % of the viewport, consistent with wider MD3 content areas.
-                            ui.set_width(ctx.content_rect().width() * 0.80);
+                            ui.set_width(ctx.content_rect().width() * 0.60);
 
-                            // ── Slider ────────────────────────────────────────────
-                            let slider_w = ui.available_width();
-                            ui.scope(|ui| {
+                            let time_font = egui::FontId::new(
+                                10.5 * scale,
+                                egui::FontFamily::Proportional,
+                            );
+
+                            ui.with_layout(egui::Layout::left_to_right(egui::Align::Center), |ui| {
+                                ui.add(egui::Label::new(
+                                    egui::RichText::new(format!("{:02}:{:02}", curr_m, curr_s))
+                                        .font(time_font.clone())
+                                        .color(on_surface_variant),
+                                ));
+
+                                let label_w = 28.0 * scale;
+                                let slider_w = (ui.available_width() - label_w
+                                    - ui.spacing().item_spacing.x * 2.0)
+                                    .max(40.0);
+
                                 ui.spacing_mut().slider_width = slider_w;
                                 let res = ui.add(
                                     MaterialSlider::new(&mut current, 0.0..=total)
@@ -627,33 +638,21 @@ impl Gui {
                                         .show_value_indicator(true)
                                         .width(slider_w),
                                 );
+                                if res.drag_started() {
+                                    crate::core::live_utils::begin_live_drag();
+                                }
                                 if res.changed() {
                                     crate::core::live_utils::move_live_playback(current);
                                 }
-                            });
+                                if res.drag_stopped() {
+                                    crate::core::live_utils::end_live_drag();
+                                }
 
-                            // ── Time labels row: current left, total right ────────
-                            ui.add_space(2.0 * scale);
-                            let time_font = egui::FontId::new(
-                                11.5 * scale,
-                                egui::FontFamily::Proportional,
-                            );
-                            ui.horizontal(|ui| {
                                 ui.add(egui::Label::new(
-                                    egui::RichText::new(format!("{:02}:{:02}", curr_m, curr_s))
-                                        .font(time_font.clone())
+                                    egui::RichText::new(format!("{:02}:{:02}", tot_m, tot_s))
+                                        .font(time_font)
                                         .color(on_surface_variant),
                                 ));
-                                ui.with_layout(
-                                    egui::Layout::right_to_left(egui::Align::Center),
-                                    |ui| {
-                                        ui.add(egui::Label::new(
-                                            egui::RichText::new(format!("{:02}:{:02}", tot_m, tot_s))
-                                                .font(time_font)
-                                                .color(on_surface_variant),
-                                        ));
-                                    },
-                                );
                             });
                         });
                 });
@@ -663,8 +662,6 @@ impl Gui {
     pub fn run(&mut self) -> egui::FullOutput {
         if let Ok(mut lock) = PENDING_THEME.lock() {
             if let Some(config) = lock.take() {
-                // Preview: no cached JSON — regenerate from new seed.
-                // Result is discarded since this is not a committed save.
                 let preview_params = crate::core::theme::ThemeParams {
                     seed: config.ui_theme_seed,
                     cached_json: None,
@@ -844,20 +841,18 @@ impl Gui {
         let ctx = self.context.clone();
         self.run_live_slider(&ctx);
 
-        let has_interactive_widgets = IS_LIVE_SCENE.load(atomic::Ordering::Relaxed);
+        let wants_pointer = self.context.wants_pointer_input()
+            || self.context.is_pointer_over_area()
+            || self.context.wants_keyboard_input();
+        let has_interactive_widgets =
+            IS_LIVE_SLIDER_ACTIVE.load(atomic::Ordering::Relaxed) && wants_pointer;
 
-        // Store this as an atomic value so the input thread can check it without locking the gui
         IS_CONSUMING_INPUT.store(
             self.is_consuming_input() || has_interactive_widgets,
-            atomic::Ordering::Relaxed,
+            atomic::Ordering::Release,
         );
 
-        WANTS_INPUT.store(
-            self.context.wants_pointer_input()
-                || self.context.is_pointer_over_area()
-                || self.context.wants_keyboard_input(),
-            atomic::Ordering::Relaxed,
-        );
+        WANTS_INPUT.store(wants_pointer, atomic::Ordering::Release);
 
         self.context.end_pass()
     }
@@ -886,8 +881,9 @@ impl Gui {
         };
 
         // Slide down from top of the screen: start offset above the screen (-100dp) and slide down to 8dp.
+        let (safe_top, _) = get_safe_insets(ctx);
         let start_y = -100.0 * scale;
-        let target_y = 8.0 * scale;
+        let target_y = 8.0 * scale + safe_top;
         let current_y = start_y + (target_y - start_y) * tween_val;
 
         egui::Area::new(id)
@@ -944,14 +940,11 @@ impl Gui {
                         ui.with_layout(egui::Layout::left_to_right(egui::Align::Center), |ui| {
                             ui.spacing_mut().item_spacing.x = 10.0 * scale;
 
-                            // Left: Logo — vertically centered against the text column
                             ui.add(Self::icon(ctx).fit_to_exact_size(egui::Vec2::new(36.0 * scale, 36.0 * scale)));
 
-                            // Right: Text Block
                             ui.vertical(|ui| {
                                 ui.spacing_mut().item_spacing.y = 3.0 * scale;
 
-                                // Row 1: Title (left) & Version Pill (right)
                                 ui.horizontal(|ui| {
                                     ui.add(egui::Label::new(
                                         egui::RichText::new("Hachimi Edge")
@@ -1030,27 +1023,28 @@ impl Gui {
                     .max_width(max_w)
                     .default_width((240.0 * scale).min(screen_w * 0.75))
                     .show_animated(ctx, self.show_menu, |ui| {
+                        
+                        let (safe_top, _) = get_safe_insets(ctx);
+                        if safe_top > 0.0 {
+                            ui.add_space(safe_top);
+                        }
+
                         ui.with_layout(egui::Layout::top_down_justified(egui::Align::TOP), |ui| {
                             ui.spacing_mut().item_spacing.y = 8.0 * scale;
 
                             ui.add_space(8.0 * scale);
 
-                            // Header card: boxed branding + action buttons
-                            // Header: Logo left, Name + Version pill + action buttons right
                             ui.horizontal(|ui| {
                                 ui.spacing_mut().item_spacing.x = 12.0 * scale;
 
-                                // Left: Logo centered
                                 let logo_size = 52.0 * scale;
                                 ui.add(Self::icon_2x(ctx).fit_to_exact_size(
                                     egui::Vec2::splat(logo_size),
                                 ));
 
-                                // Right: three rows
                                 ui.vertical(|ui| {
                                     ui.spacing_mut().item_spacing.y = 5.0 * scale;
 
-                                    // Row 1: Name
                                     ui.add(egui::Label::new(
                                         egui::RichText::new("Hachimi Edge")
                                             .size(17.0 * scale)
@@ -1058,7 +1052,6 @@ impl Gui {
                                             .color(get_global_color("onSurface")),
                                     ));
 
-                                    // Row 2: Version pill
                                     {
                                         let version_bg = get_global_color("primaryContainer");
                                         let version_fg = get_global_color("onPrimaryContainer");
@@ -1081,7 +1074,6 @@ impl Gui {
                                             });
                                     }
 
-                                      // Row 3: Info (?) and Close (X) icon buttons — larger glyph for touch targets
                                       ui.horizontal(|ui| {
                                           ui.spacing_mut().item_spacing.x = 4.0 * scale;
                                           let icon_rt = |glyph: &str| {
@@ -1115,7 +1107,6 @@ impl Gui {
                             egui::ScrollArea::vertical().show(ui, |ui| {
                                 ui.set_width(ui.available_width());
 
-                                // 1. Stats Section
                                 section_heading(ui, t!("menu.stats_heading").into_owned());
                                 section_group_frame().show(ui, |ui| {
                                     ui.spacing_mut().item_spacing.y = 4.0 * scale;
@@ -1136,7 +1127,6 @@ impl Gui {
                                     ));
                                 });
 
-                                // 2. Config Section
                                 section_heading(ui, t!("menu.config_heading").into_owned());
                                 if ConfigEditor::list_tile_button(ui, t!("menu.open_config_editor")) {
                                     show_window = Some(Box::new(ConfigEditor::new()));
@@ -1149,7 +1139,6 @@ impl Gui {
                                     show_window = Some(Box::new(FirstTimeSetupWindow::new()));
                                 }
 
-                                // 3. Graphics Section
                                 section_heading(ui, t!("menu.graphics_heading").into_owned());
                                 let mut current_target_fps = hachimi.target_fps.load(atomic::Ordering::Relaxed);
                                 if current_target_fps <= 0 {
@@ -1264,7 +1253,6 @@ impl Gui {
                                 }
                                 ui.add_space(8.0 * scale);
 
-                                // 4. Translation Section
                                 section_heading(ui, t!("menu.translation_heading").into_owned());
                                 if ConfigEditor::list_tile_button(ui, t!("menu.reload_localized_data")) {
                                     hachimi.load_localized_data();
@@ -1300,7 +1288,6 @@ impl Gui {
                                 }
                                 ui.add_space(8.0 * scale);
 
-                                // 5. Plugins Section
                                 let plugin_items = get_plugin_menu_items();
                                 if !plugin_items.is_empty() {
                                     section_heading(ui, "Plugins".to_owned());
@@ -1321,8 +1308,6 @@ impl Gui {
                                             ui.vertical(|ui| {
                                                 let clicked = ui.horizontal(|ui| {
                                                     ui.spacing_mut().item_spacing.x = gap;
-                                                    // Allocate icon at exact size so it doesn't
-                                                    // consume extra space.
                                                     ui.allocate_ui_with_layout(
                                                         egui::Vec2::splat(icon_size),
                                                         egui::Layout::centered_and_justified(egui::Direction::TopDown),
@@ -1403,7 +1388,6 @@ impl Gui {
                                     }
                                 }
 
-                                // 6. Danger Zone Section
                                 ui.add_space(12.0 * scale);
                                 {
                                     let error = get_global_color("error");
@@ -1488,6 +1472,11 @@ impl Gui {
                                 }
                                 if ConfigEditor::list_tile_button(ui, t!("menu.toggle_game_ui")) {
                                     Thread::main_thread().schedule(Self::toggle_game_ui);
+                                }
+
+                                let (_, safe_bottom) = get_safe_insets(ui.ctx());
+                                if safe_bottom > 0.0 {
+                                    ui.add_space(safe_bottom);
                                 }
                             });
                         });
@@ -1640,7 +1629,6 @@ impl Gui {
             let is_open = egui::Popup::is_id_open(ui.ctx(), popup_id);
             let is_hovered = button_res.hovered();
 
-            // Material Design colors
             let primary_color = get_global_color("primary");
             let surface = get_global_color("surface");
             let outline = get_global_color("outline");
@@ -1811,7 +1799,6 @@ impl Gui {
                             );
                             ui.painter().galley(text_pos, galley, text_color);
 
-                            // Advance cursor
                             ui.advance_cursor_after_rect(option_rect);
 
                             if option_response.clicked() {
@@ -1851,22 +1838,20 @@ impl Gui {
 
         let tl_updater = Hachimi::instance().tl_updater.clone();
 
-        // Show mod progress if active, otherwise fall back to main TL progress
         let (progress, is_mod) = if let Some(p) = tl_updater.mod_progress() {
             (p, true)
         } else if let Some(p) = tl_updater.progress() {
             (p, false)
         } else {
-            // Neither active — hide the overlay
             self.update_progress_visible = false;
             return;
         };
 
         let ratio = progress.current as f32 / progress.total as f32;
+        let (safe_top, _) = get_safe_insets(ctx);
 
-        // Center-top card
         egui::Area::new("update_progress".into())
-            .anchor(egui::Align2::CENTER_TOP, egui::vec2(0.0, 8.0 * scale))
+            .anchor(egui::Align2::CENTER_TOP, egui::vec2(0.0, 8.0 * scale + safe_top))
             .constrain(false)
             .interactable(false)
             .show(ctx, |ui| {
@@ -1909,7 +1894,6 @@ impl Gui {
                     .show(ui, |ui| {
                         ui.set_width(card_width);
 
-                        // Row 1: title left, percentage right
                         ui.horizontal(|ui| {
                             ui.set_width(ui.available_width());
                             ui.label(title);
@@ -1923,7 +1907,6 @@ impl Gui {
 
                         ui.add_space(4.0 * scale);
 
-                        // Row 2: progress bar — fills available width symmetrically
                         let bar_w = ui.available_width();
                         ui.add(
                             MaterialProgress::linear()
@@ -1931,7 +1914,6 @@ impl Gui {
                                 .size(egui::Vec2::new(bar_w, 4.0 * scale)),
                         );
 
-                        // Row 3: warning — only shown during actual download, small font
                         if is_downloading {
                             ui.add_space(4.0 * scale);
                             ui.label(
@@ -1947,8 +1929,6 @@ impl Gui {
         let ctx = &self.context;
         let scale = get_scale(ctx);
         let now = Instant::now();
-        // Center-bottom stack per MD3 spec: first snackbar sits 16dp from bottom,
-        // each subsequent one is stacked above the previous with 8dp gap.
         let gap = 8.0 * scale;
         let mut offset = 0.0f32;
 
@@ -2024,7 +2004,7 @@ impl Gui {
     }
 
     pub fn is_consuming_input_atomic() -> bool {
-        IS_CONSUMING_INPUT.load(atomic::Ordering::Relaxed)
+        IS_CONSUMING_INPUT.load(atomic::Ordering::Acquire)
     }
 
     pub fn set_consuming_input(&mut self, val: bool) {
@@ -2037,7 +2017,7 @@ impl Gui {
     }
 
     pub fn wants_input_atomic() -> bool {
-        WANTS_INPUT.load(atomic::Ordering::Relaxed)
+        WANTS_INPUT.load(atomic::Ordering::Acquire)
     }
 
     pub fn toggle_menu(&mut self) {
@@ -2209,7 +2189,6 @@ impl ConfigEditor {
         let action_bar_h = 48.0 * scale;
         let scroll_h = (ui.available_height() - action_bar_h - tab_h - 7.0 * scale).max(40.0);
 
-        // 1. Settings Scroll Area
         egui::ScrollArea::vertical()
             .id_salt("portrait_body_scroll")
             .max_height(scroll_h)
@@ -2229,7 +2208,6 @@ impl ConfigEditor {
 
         ui.separator();
 
-        // 2. Tab Bar (at the bottom, above action buttons)
         let mut tab_idx = self.current_tab.as_index();
         ui.scope_builder(egui::UiBuilder::new(), |ui| {
             ui.set_width(content_w);
@@ -2248,7 +2226,6 @@ impl ConfigEditor {
 
         ui.add_space(6.0 * scale);
 
-        // 3. Action Bar (Restore Defaults, Save, Cancel)
         ui.with_layout(egui::Layout::left_to_right(egui::Align::Min), |ui| {
             let error_col = get_global_color("error");
             if ui
@@ -2307,7 +2284,6 @@ impl ConfigEditor {
                     self.current_tab = ConfigEditorTab::from_index(tab_idx);
                 }
 
-                // Right — settings list
                 let inner_w = body_w - LIST_TILE_PAD_H * 2.0 * scale;
                 ui.data_mut(|d| {
                     d.insert_temp(egui::Id::new("grid_control_w"), inner_w);
@@ -2383,8 +2359,6 @@ pub fn save_and_reload_config(config: hachimi::Config) {
         Err(e) => t!("notification.error_occurred", reason = e.to_string()).into_owned(),
     };
 
-    // workaround since we can't get a mutable ref to the Gui and
-    // locking the mutex on the current thread would cause a deadlock
     thread::spawn(move || {
         Gui::instance()
             .unwrap()
@@ -2411,13 +2385,7 @@ pub fn custom_color_button_with_close(ui: &mut egui::Ui, color: &mut egui::Color
     }
     
     let popup_id = ui.make_persistent_id(popup_id_str);
-    
-    // Compute a screen-relative picker size so it doesn't overflow on small
-    // screens (phones).  The color picker's SV square is drawn at
-    // slider_width × slider_width, and the popup has no built-in size cap, so
-    // we derive both dimensions from the logical screen size.
-    // On a typical phone (e.g. 1080 px portrait → ~360 logical pt wide) this
-    // yields ~195 pt; on desktop it caps at 210 pt — compact but usable.
+
     let screen_width = ui.ctx().content_rect().width();
     let picker_width = (screen_width * 0.55).clamp(150.0, 210.0);
 
@@ -2450,11 +2418,6 @@ pub fn custom_color_button_with_close(ui: &mut egui::Ui, color: &mut egui::Color
     response
 }
 
-// Test-seam helper — mirrors the FIXED Windows orientation_scale logic from
-// set_screen_size() as a pure function so it can be tested without a live
-// egui context.  Updated in Task 3.1 to match the corrected formula.
-// The Task-1 bug-condition tests now pass against this helper, which is the
-// intended validation signal that the fix is correct.
 #[doc(hidden)]
 pub fn compute_pixels_per_point(
     width: i32,
@@ -2484,22 +2447,11 @@ pub fn compute_pixels_per_point(
     main_axis_size as f32 * PIXELS_PER_POINT_RATIO * landscape_adjust * orientation_scale
 }
 
-// Task 1 — Bug Condition Exploration Tests
-// These tests encode the EXPECTED (correct) behavior.
-// On UNFIXED code they FAIL — that failure is the SUCCESS signal for Task 1.
-// They will PASS once the fix from Task 3 is applied.
-// Validates: Requirements 1.1, 1.2, 1.3
 #[cfg(test)]
 mod bug_condition_exploration_tests {
     use super::{compute_pixels_per_point, PIXELS_PER_POINT_RATIO};
     use proptest::prelude::*;
 
-    // Unit tests for canonical landscape resolutions
-
-    /// 16:9 default ratio — expected 3.0, buggy ≈ 1.69
-    /// Counterexample: height/width = 1080/1920 ≈ 0.5625 factor applied erroneously
-    ///
-    /// Validates: Requirements 1.1, 1.2
     #[test]
     fn test_16x9_default_ratio_should_be_3_0() {
         let result = compute_pixels_per_point(1920, 1080, 1.0, true);
@@ -2512,10 +2464,6 @@ mod bug_condition_exploration_tests {
         );
     }
 
-    /// 21:9 ultrawide default ratio — expected 3.0, buggy ≈ 1.27
-    /// Counterexample: height/width = 1080/2560 ≈ 0.4219 factor applied erroneously
-    ///
-    /// Validates: Requirements 1.1, 1.2
     #[test]
     fn test_21x9_default_ratio_should_be_3_0() {
         let result = compute_pixels_per_point(2560, 1080, 1.0, true);
@@ -2528,10 +2476,6 @@ mod bug_condition_exploration_tests {
         );
     }
 
-    /// 16:9 with gui_landscape_ratio = 0.8 — expected 2.4, buggy ≈ 1.35
-    /// Counterexample: 3.0 * 0.8 * 0.5625 ≈ 1.35 instead of 3.0 * 0.8 = 2.4
-    ///
-    /// Validates: Requirements 1.1, 1.2
     #[test]
     fn test_16x9_ratio_0_8_should_be_2_4() {
         let result = compute_pixels_per_point(1920, 1080, 0.8, true);
@@ -2544,16 +2488,9 @@ mod bug_condition_exploration_tests {
         );
     }
 
-    // Slider max assertion
-
-    /// The config slider for gui_landscape_ratio must allow values up to 2.0.
-    /// On UNFIXED code the range is capped at 1.0 — this test fails to document that.
-    ///
-    /// Validates: Requirement 1.3
     #[test]
     fn test_slider_max_should_be_2_0() {
-        // After fix (Task 3.2) the range is `0.25..=2.0` — assert the fixed value here.
-        let slider_max: f32 = 2.0; // ACTUAL value on fixed code (see gui.rs ~line 2837: `0.25..=2.0`)
+        let slider_max: f32 = 2.0;
         let expected_max: f32 = 2.0;
         assert!(
             (slider_max - expected_max).abs() < f32::EPSILON,
@@ -2561,28 +2498,14 @@ mod bug_condition_exploration_tests {
         );
     }
 
-    // Property-based test
-    // For all landscape (width > height > 0) inputs with the feature enabled,
-    // the expected result is: height * PIXELS_PER_POINT_RATIO * gui_landscape_ratio
-    // On UNFIXED code this property fails because orientation_ratio is also multiplied in.
-    // Validates: Requirements 1.1, 1.2
-
     proptest! {
-        /// Property 1: Bug Condition — Landscape pixels_per_point without aspect-ratio squeeze.
-        ///
-        /// For any landscape input (width > height > 0) with enable_gui_landscape_ratio = true,
-        /// pixels_per_point MUST equal height * PIXELS_PER_POINT_RATIO * gui_landscape_ratio.
-        /// No height/width factor should be applied.
-        ///
-        /// **Validates: Requirements 1.1, 1.2**
         #[test]
         fn prop_landscape_ppp_equals_height_times_ratio_times_gui_ratio(
-            // height in [1, 4320], width strictly greater than height (landscape)
             height in 1_i32..=4320_i32,
             width_extra in 1_i32..=7680_i32,
             gui_landscape_ratio in 0.25_f32..=2.0_f32,
         ) {
-            let width = height + width_extra; // guarantees width > height
+            let width = height + width_extra;
             let result = compute_pixels_per_point(width, height, gui_landscape_ratio, true);
             let expected = height as f32 * PIXELS_PER_POINT_RATIO * gui_landscape_ratio;
 
@@ -2600,26 +2523,11 @@ mod bug_condition_exploration_tests {
     }
 }
 
-// Task 2 — Preservation Property Tests
-// These tests encode the NON-BUG-CONDITION paths that must remain unchanged
-// both before and after the fix.  All tests PASS on UNFIXED code (baseline
-// confirmation) and must continue to PASS after the fix (regression guard).
-// Observation on UNFIXED code (recorded before writing assertions):
-//   - Portrait     compute_pixels_per_point(1080, 1920, 1.0, true)  → 3.0
-//   - Feat-disabled compute_pixels_per_point(1920, 1080, 1.0, false) → 3.0
-//   - Portrait unusual compute_pixels_per_point(768, 1024, 1.0, true) → ≈2.1333
-// Validates: Requirements 3.1, 3.2, 3.3, 3.4
 #[cfg(test)]
 mod preservation_tests {
     use super::{compute_pixels_per_point, PIXELS_PER_POINT_RATIO};
     use proptest::prelude::*;
 
-    // Concrete baseline observations (recorded from UNFIXED code)
-
-    /// Portrait 9:16 — main_axis_size = min(1080, 1920) = 1080, orientation_scale = 1.0.
-    /// Expected: 1080 * (3/1080) * 1.0 = 3.0
-    ///
-    /// Validates: Requirement 3.1
     #[test]
     fn observe_portrait_9x16_equals_3_0() {
         let result = compute_pixels_per_point(1080, 1920, 1.0, true);
@@ -2628,17 +2536,12 @@ mod preservation_tests {
             (result - expected).abs() < 1e-6,
             "Portrait(1080, 1920): got {result:.6}, expected {expected:.6}"
         );
-        // Sanity-check the concrete 3.0 value
         assert!(
             (result - 3.0_f32).abs() < 1e-4,
             "Portrait(1080, 1920): got {result:.6}, expected ≈ 3.0"
         );
     }
 
-    /// Landscape with feature DISABLED — orientation_scale forced to 1.0.
-    /// Expected: 1080 * (3/1080) * 1.0 = 3.0 (same as portrait baseline)
-    ///
-    /// Validates: Requirement 3.2
     #[test]
     fn observe_landscape_feature_disabled_equals_3_0() {
         let result = compute_pixels_per_point(1920, 1080, 1.0, false);
@@ -2653,10 +2556,6 @@ mod preservation_tests {
         );
     }
 
-    /// Portrait at unusual 3:4 ratio — main_axis_size = min(768, 1024) = 768.
-    /// Expected: 768 * (3/1080) ≈ 2.1333
-    ///
-    /// Validates: Requirement 3.1
     #[test]
     fn observe_portrait_unusual_ratio_3x4() {
         let result = compute_pixels_per_point(768, 1024, 1.0, true);
@@ -2667,20 +2566,7 @@ mod preservation_tests {
         );
     }
 
-    // Property-based preservation tests
-
     proptest! {
-        /// Property 2a: Portrait preservation.
-        ///
-        /// For any portrait input (width ≤ height, both > 0), regardless of
-        /// gui_landscape_ratio (which has no effect in portrait mode), the
-        /// function MUST return min(width, height) * PIXELS_PER_POINT_RATIO.
-        ///
-        /// The bug condition (isBugCondition) requires width > height, so all
-        /// portrait inputs are outside the bug condition and must be unchanged
-        /// by the fix.
-        ///
-        /// **Validates: Requirements 3.1**
         #[test]
         fn prop_portrait_ppp_equals_min_axis_times_ratio(
             // width in [1, 4320], height ≥ width (portrait or square)
@@ -2690,9 +2576,6 @@ mod preservation_tests {
         ) {
             let height = width + height_extra; // guarantees height >= width (portrait / square)
             let result = compute_pixels_per_point(width, height, gui_landscape_ratio, true);
-            // In portrait: is_landscape = false, main_axis_size = min(width, height) = width,
-            // orientation_scale = 1.0 (feature disabled branch not reached; landscape branch
-            // not taken). gui_landscape_ratio is ignored.
             let expected = width.min(height) as f32 * PIXELS_PER_POINT_RATIO;
 
             prop_assert!(
@@ -2702,25 +2585,15 @@ mod preservation_tests {
             );
         }
 
-        /// Property 2b: Feature-disabled preservation.
-        ///
-        /// For any landscape input (width > height > 0) with
-        /// enable_gui_landscape_ratio = false, the function MUST return
-        /// height * PIXELS_PER_POINT_RATIO (orientation_scale = 1.0).
-        ///
-        /// This path is already correct in the buggy code and must stay correct
-        /// after the fix.
-        ///
-        /// **Validates: Requirements 3.2**
+
         #[test]
         fn prop_feature_disabled_landscape_ppp_equals_height_times_ratio(
             height in 1_i32..=4320_i32,
             width_extra in 1_i32..=7680_i32,
             gui_landscape_ratio in 0.25_f32..=2.0_f32,
         ) {
-            let width = height + width_extra; // guarantees width > height (landscape)
+            let width = height + width_extra;
             let result = compute_pixels_per_point(width, height, gui_landscape_ratio, false);
-            // enable_gui_landscape_ratio = false → orientation_scale = 1.0 regardless of ratio
             let expected = height as f32 * PIXELS_PER_POINT_RATIO * 1.0;
 
             prop_assert!(
@@ -2730,16 +2603,6 @@ mod preservation_tests {
             );
         }
 
-        /// Property 2c: gui_scale independence.
-        ///
-        /// compute_pixels_per_point() accepts no gui_scale parameter, confirming
-        /// that gui_scale (the separate user-configurable egui style scale applied
-        /// via style.scale() in run()) has ZERO effect on pixels_per_point from
-        /// set_screen_size(). This property verifies that for the same screen
-        /// dimensions the result is identical regardless of any hypothetical
-        /// gui_scale value — encoded here as a constant (portrait path).
-        ///
-        /// **Validates: Requirements 3.4**
         #[test]
         fn prop_gui_scale_has_no_effect_on_pixels_per_point(
             width in 1_i32..=4320_i32,
@@ -2747,8 +2610,6 @@ mod preservation_tests {
             gui_landscape_ratio in 0.25_f32..=2.0_f32,
         ) {
             let height = width + height_extra;
-            // Calling with the same arguments twice must produce the same result.
-            // gui_scale is not a parameter — the function is pure and deterministic.
             let result_a = compute_pixels_per_point(width, height, gui_landscape_ratio, true);
             let result_b = compute_pixels_per_point(width, height, gui_landscape_ratio, true);
             prop_assert!(
@@ -2758,8 +2619,6 @@ mod preservation_tests {
                 width, height, gui_landscape_ratio, result_a, result_b
             );
 
-            // Additionally confirm: portrait path never involves gui_landscape_ratio
-            // (any gui_landscape_ratio value produces the same result in portrait).
             let expected = width.min(height) as f32 * PIXELS_PER_POINT_RATIO;
             prop_assert!(
                 (result_a - expected).abs() < 1e-6,
@@ -2770,6 +2629,51 @@ mod preservation_tests {
     }
 }
 
+pub enum NotificationRequest {
+    TLRepoChanged,
+    Custom(String),
+}
 
+pub fn request_notification(req: NotificationRequest) {
+    std::thread::spawn(move || {
+        let Some(gui_mutex) = Gui::instance() else { return };
+        if let Ok(mut gui) = gui_mutex.lock() {
+            match req {
+                NotificationRequest::TLRepoChanged => {
+                    gui.show_notification(&rust_i18n::t!("notification.tl_repo_changed"));
+                }
+                NotificationRequest::Custom(msg) => {
+                    gui.show_notification(&msg);
+                }
+            }
+        }
+    });
+}
 
+#[cfg(target_os = "android")]
+pub fn get_safe_insets(ctx: &egui::Context) -> (f32, f32) {
+    let hachimi = crate::core::Hachimi::instance();
+    if hachimi.hooking_finished.load(std::sync::atomic::Ordering::Relaxed) {
+        if let Some(rect) = crate::il2cpp::hook::UnityEngine_CoreModule::Screen::get_safeArea() {
+            let screen_h = ctx.content_rect().height();
+            let safe_bottom = rect.y;
+            let safe_top = screen_h - rect.y - rect.height;
+            if safe_top > 0.0 || safe_bottom > 0.0 {
+                return (safe_top.max(0.0), safe_bottom.max(0.0));
+            }
+        }
+    }
 
+    let (top_px, bottom_px) = crate::android::utils::get_safe_insets_jni();
+    if top_px > 0.0 || bottom_px > 0.0 {
+        let ppp = ctx.pixels_per_point();
+        return (top_px / ppp, bottom_px / ppp);
+    }
+
+    (0.0, 0.0)
+}
+
+#[cfg(not(target_os = "android"))]
+pub fn get_safe_insets(_ctx: &egui::Context) -> (f32, f32) {
+    (0.0, 0.0)
+}

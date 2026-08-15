@@ -261,7 +261,12 @@ pub fn init() {
             let window_name = if game.region == Region::Japan {
                 // JP Steam client uses the legacy "UmamusumePrettyDerby_Jpn" title.
                 w!("UmamusumePrettyDerby_Jpn")
-            } else {
+            }
+            else if game.region == Region::Taiwan {
+                // Komoe/Taiwan client window title (updated Aug 2026 — was "komoeumamusume")
+                w!("賽馬娘Pretty Derby")
+            }
+            else {
                 // Global Steam client uses the main "Umamusume" title.
                 w!("Umamusume")
             };

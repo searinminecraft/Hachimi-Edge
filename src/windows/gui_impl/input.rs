@@ -283,7 +283,6 @@ fn get_key(wparam: usize) -> Option<Key> {
     let vk = VIRTUAL_KEY(wparam as u16);
 
     match vk {
-        // nav/cmd keys
         VK_DOWN => Some(Key::ArrowDown),
         VK_LEFT => Some(Key::ArrowLeft),
         VK_RIGHT => Some(Key::ArrowRight),
@@ -300,7 +299,6 @@ fn get_key(wparam: usize) -> Option<Key> {
         VK_PRIOR => Some(Key::PageUp),
         VK_NEXT => Some(Key::PageDown),
 
-        // numbers 0-9
         VIRTUAL_KEY(0x30) => Some(Key::Num0),
         VIRTUAL_KEY(0x31) => Some(Key::Num1),
         VIRTUAL_KEY(0x32) => Some(Key::Num2),
@@ -312,7 +310,6 @@ fn get_key(wparam: usize) -> Option<Key> {
         VIRTUAL_KEY(0x38) => Some(Key::Num8),
         VIRTUAL_KEY(0x39) => Some(Key::Num9),
 
-        // letters a-z
         VIRTUAL_KEY(0x41) => Some(Key::A),
         VIRTUAL_KEY(0x42) => Some(Key::B),
         VIRTUAL_KEY(0x43) => Some(Key::C),

@@ -30,11 +30,8 @@ pub fn render(editor: &ConfigEditor, config: &mut crate::core::hachimi::Config, 
     ConfigEditor::list_tile_switch(ui, t!("config_editor.ipc_listen_all"),        &mut config.ipc_listen_all,       true);
     ConfigEditor::list_tile_switch(ui, t!("config_editor.ipv4_only"),             &mut config.ipv4_only,            true);
 
-    // Meta index URL
     {
         ui.add(egui::Label::new(t!("config_editor.meta_index_url")).wrap());
-        // Pin the content width before rendering so focus-state changes
-        // (stroke width ±1px) don't shift the layout of surrounding rows.
         ui.set_max_width(ui.available_width());
         let res = ui.add(MaterialTextField::filled(&mut config.meta_index_url).lock_focus(true));
         if res.lost_focus() && config.meta_index_url.trim().is_empty() {
@@ -50,7 +47,6 @@ pub fn render(editor: &ConfigEditor, config: &mut crate::core::hachimi::Config, 
         ui.add_space(4.0);
     }
 
-    // Localized data directory — explicit width prevents layout shifts
     {
         let avail_w = ui.available_width();
         ui.add(egui::Label::new(t!("config_editor.localized_data_dir")).wrap());
@@ -130,13 +126,11 @@ pub fn render(editor: &ConfigEditor, config: &mut crate::core::hachimi::Config, 
 
         ConfigEditor::list_tile_switch(ui, t!("config_editor.discord_rpc"), &mut config.windows.discord_rpc, true);
 
-        // SMTC — disabled with Wine hint when unavailable
         ConfigEditor::list_tile_switch_with_hint(
             ui, t!("config_editor.enable_smtc"), &mut config.windows.enable_smtc,
             supports_smtc, t!("config_editor.unavailable_wine_proton"),
         );
 
-        // Notification settings — disabled with Wine hint when unavailable
         for (label_key, val) in [
             ("config_editor.notification_tp",    &mut config.notification_tp    as &mut bool),
             ("config_editor.notification_rp",    &mut config.notification_rp),
@@ -148,7 +142,6 @@ pub fn render(editor: &ConfigEditor, config: &mut crate::core::hachimi::Config, 
             );
         }
 
-        // Taskbar progress — disabled with Wine hint when unavailable
         for (label_key, val) in [
             ("config_editor.taskbar_show_progress_on_download",    &mut config.windows.taskbar_show_progress_on_download   as &mut bool),
             ("config_editor.taskbar_show_progress_on_connecting",  &mut config.windows.taskbar_show_progress_on_connecting),
@@ -159,8 +152,6 @@ pub fn render(editor: &ConfigEditor, config: &mut crate::core::hachimi::Config, 
             );
         }
 
-        // Hide-ingame-UI hotkey bind — interactive rebind row
-        // Same chip+button pattern as the menu hotkey row in general.rs.
         {
             let key_label = crate::windows::utils::vk_to_display_label(config.windows.hide_ingame_ui_hotkey_bind);
             let secondary_container    = get_global_color("secondaryContainer");
@@ -175,7 +166,6 @@ pub fn render(editor: &ConfigEditor, config: &mut crate::core::hachimi::Config, 
             ui.add(egui::Label::new(t!("config_editor.hide_ingame_ui_hotkey_bind")).wrap());
             ui.horizontal(|ui| {
                 ui.spacing_mut().item_spacing.x = 8.0;
-                // Key chip
                 let (chip_rect, _) = ui.allocate_exact_size(
                     egui::vec2(chip_w, 28.0),
                     egui::Sense::hover(),
@@ -188,7 +178,6 @@ pub fn render(editor: &ConfigEditor, config: &mut crate::core::hachimi::Config, 
                     ui.style().text_styles[&egui::TextStyle::Body].clone(),
                     on_secondary_container,
                 );
-                // "Bind" button
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                     if ui.add(MaterialButton::outlined(t!("bind_key"))).clicked() {
                         thread::spawn(|| {
@@ -215,7 +204,6 @@ pub fn render(editor: &ConfigEditor, config: &mut crate::core::hachimi::Config, 
             &mut config.windows.ui_loading_show_orientation_guide, true);
 
         ConfigEditor::list_tile_text_field(ui, t!("config_editor.custom_title_name"), {
-            // Option<String> shim — read/write through a local String
             let _ = config.custom_title_name.get_or_insert_with(String::new);
             config.custom_title_name.as_mut().unwrap()
         });
@@ -223,7 +211,6 @@ pub fn render(editor: &ConfigEditor, config: &mut crate::core::hachimi::Config, 
             config.custom_title_name = None;
         }
 
-        // Full-screen resolution — horizontal layout (W x H or H x W based on orientation)
         let is_landscape = ui.ctx().input(|i| i.viewport_rect().width() > i.viewport_rect().height());
         let label_text = if is_landscape {
             format!("{} ({})", t!("config_editor.full_screen_res"), t!("config_editor.landscape"))
@@ -240,7 +227,7 @@ pub fn render(editor: &ConfigEditor, config: &mut crate::core::hachimi::Config, 
 
             if is_landscape {
                 let (rect, _) = ui.allocate_exact_size(egui::vec2(number_w, 32.0), egui::Sense::hover());
-                let w_field = ui.put(
+                let _ = ui.put(
                         rect,
                         MaterialNumberField::filled(&mut config.windows.full_screen_res.width)
                             .range(0..=7680)
@@ -248,7 +235,7 @@ pub fn render(editor: &ConfigEditor, config: &mut crate::core::hachimi::Config, 
                     );
                 ui.label("W px");
                 let (rect2, _) = ui.allocate_exact_size(egui::vec2(number_w, 32.0), egui::Sense::hover());
-                let h_field = ui.put(
+                let _ = ui.put(
                         rect2,
                         MaterialNumberField::filled(&mut config.windows.full_screen_res.height)
                             .range(0..=4320)
@@ -257,7 +244,7 @@ pub fn render(editor: &ConfigEditor, config: &mut crate::core::hachimi::Config, 
                 ui.label("H px");
             } else {
                 let (rect, _) = ui.allocate_exact_size(egui::vec2(number_w, 32.0), egui::Sense::hover());
-                let h_field = ui.put(
+                let _ = ui.put(
                         rect,
                         MaterialNumberField::filled(&mut config.windows.full_screen_res.height)
                             .range(0..=4320)
@@ -265,7 +252,7 @@ pub fn render(editor: &ConfigEditor, config: &mut crate::core::hachimi::Config, 
                     );
                 ui.label("H px");
                 let (rect2, _) = ui.allocate_exact_size(egui::vec2(number_w, 32.0), egui::Sense::hover());
-                let w_field = ui.put(
+                let _ = ui.put(
                         rect2,
                         MaterialNumberField::filled(&mut config.windows.full_screen_res.width)
                             .range(0..=7680)
@@ -279,7 +266,6 @@ pub fn render(editor: &ConfigEditor, config: &mut crate::core::hachimi::Config, 
 
     ConfigEditor::list_tile_switch(ui, t!("config_editor.hide_now_loading"), &mut config.hide_now_loading, true);
 
-    // ── Experimental ──────────────────────────────────────────────────────────
     ui.add_space(4.0);
     section_heading(ui, t!("config_editor.experimental_settings_heading"));
     ui.add_space(4.0);
@@ -295,9 +281,7 @@ pub fn render(editor: &ConfigEditor, config: &mut crate::core::hachimi::Config, 
         });
     }
 
-    // Sub-options — only visible when auto-translate is enabled
     if config.auto_translate_stories {
-        // Sugoi URL
         {
             let mut url = config.sugoi_url.clone().unwrap_or_default();
             if ConfigEditor::list_tile_text_field(ui, t!("config_editor.sugoi_url"), &mut url).changed() {
@@ -331,7 +315,6 @@ pub fn render(editor: &ConfigEditor, config: &mut crate::core::hachimi::Config, 
     ConfigEditor::list_tile_switch(ui, t!("config_editor.dump_msgpack"),         &mut config.dump_msgpack,         true);
     ConfigEditor::list_tile_switch(ui, t!("config_editor.dump_msgpack_request"), &mut config.dump_msgpack_request, true);
 
-    // ── Developer ─────────────────────────────────────────────────────────────
     ui.add_space(4.0);
     section_heading(ui, t!("config_editor.developer_settings_heading"));
     ui.add_space(4.0);
