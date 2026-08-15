@@ -64,15 +64,8 @@ if [ -d "$APK_ARM64_LIB_DIR" ]; then
     cp "./build/aarch64-linux-android/$BUILD_TYPE/libhachimi.so" "$APK_ARM64_LIB_DIR/libmain.so"
 fi
 
-if [ -d "$APK_ARM_LIB_DIR" ]; then
-    if [ ! -f "$APK_ARM_LIB_DIR/libmain_orig.so" ]; then
-        echo "-- [armv7] Copying libmain_orig.so"
-        cp "$APK_ARM_LIB_DIR/libmain.so" "$APK_ARM_LIB_DIR/libmain_orig.so"
-    fi
-
-    echo "-- [armv7] Copying Hachimi"
-    cp "./build/armv7-linux-androideabi/$BUILD_TYPE/libhachimi.so" "$APK_ARM_LIB_DIR/libmain.so"
-fi
+# Only ARM64 is supported; armv7 and other architectures are not built
+# If the APK contains armv7 libraries, they will remain untouched
 
 echo "-- Repacking APK"
 pushd "$APK_EXTRACT_DIR"

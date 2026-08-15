@@ -32,7 +32,8 @@ rustflags = [
     "-C", "link-args=-lc++abi",
     "-C", "link-arg=-fuse-ld=lld",
     "-C", "link-arg=-z",
-    "-C", "link-arg=max-page-size=65536"
+    "-C", "link-arg=max-page-size=16384",
+    "-C", "link-arg=-Wl,-soname,libmain.so"
 ]
 
 [target.x86_64-pc-windows-msvc]

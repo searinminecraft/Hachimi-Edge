@@ -1,6 +1,16 @@
 #!/usr/bin/env bash
 set -e
 
+case "$OSTYPE" in
+    darwin*)              OS="darwin"  ;;
+    linux*)               OS="linux"   ;;
+    msys*|cygwin*|mingw*) OS="windows" ;;
+    *)
+        echo "ERROR: Unsupported host OS: $OSTYPE"
+        exit 1
+        ;;
+esac
+
 SONAME=hachimi
 MODID=hachimi-edge
 MODNAME=Hachimi-Edge
@@ -65,8 +75,8 @@ copy_lib() {
         mkdir -p "$ZYGISK_BUILD_DIR/lib/$mod_lib_arch"
         cp -v "$lib_path" "$ZYGISK_BUILD_DIR/lib/$mod_lib_arch/lib$SONAME.so"
 
-        if [[ -n "$ANDROID_NDK_ROOT" ]] && [[ -f "$ANDROID_NDK_ROOT/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-strip" ]]; then
-            "$ANDROID_NDK_ROOT/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-strip" --strip-debug "$ZYGISK_BUILD_DIR/lib/$mod_lib_arch/lib$SONAME.so" || true
+        if [[ -n "$ANDROID_NDK_ROOT" ]] && [[ -f "$ANDROID_NDK_ROOT/toolchains/llvm/prebuilt/$OS-x86_64/bin/llvm-strip" ]]; then
+            "$ANDROID_NDK_ROOT/toolchains/llvm/prebuilt/$OS-x86_64/bin/llvm-strip" --strip-debug "$ZYGISK_BUILD_DIR/lib/$mod_lib_arch/lib$SONAME.so" || true
         fi
     else
         echo "Skipping optional $mod_lib_arch ($lib_path not found)"
