@@ -1,5 +1,6 @@
 use crate::il2cpp::{api::{il2cpp_class_get_type, il2cpp_type_get_object}, symbols::get_method_addr, types::*};
 use crate::il2cpp::hook::UnityEngine_TextRenderingModule::TextGenerator;
+use log::error;
 
 static mut TYPE_OBJECT: *mut Il2CppObject = 0 as _;
 pub fn type_object() -> *mut Il2CppObject {
@@ -8,10 +9,19 @@ pub fn type_object() -> *mut Il2CppObject {
 
 type SendWillRenderCanvasesFn = extern "C" fn();
 extern "C" fn SendWillRenderCanvases() {
-    get_orig_fn!(SendWillRenderCanvases, SendWillRenderCanvasesFn)();
+    // Call original hook
+    if let Err(e) = std::panic::catch_unwind(|| {
+        get_orig_fn!(SendWillRenderCanvases, SendWillRenderCanvasesFn)();
+    }) {
+        error!("SendWillRenderCanvases original hook panicked: {:?}", e);
+    }
 
-    // apply any queued position offsets after layout pass
-    TextGenerator::drain_pending_offsets();
+    // Apply any queued position offsets after layout pass
+    if let Err(e) = std::panic::catch_unwind(|| {
+        TextGenerator::drain_pending_offsets();
+    }) {
+        error!("TextGenerator::drain_pending_offsets panicked: {:?}", e);
+    }
 }
 
 pub fn init(UnityEngine_UIModule: *const Il2CppImage) {

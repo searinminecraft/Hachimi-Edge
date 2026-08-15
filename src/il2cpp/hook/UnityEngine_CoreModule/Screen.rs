@@ -145,6 +145,27 @@ pub fn set_screen_timeout_disabled(disabled: bool) {
     }
 }
 
+pub static mut GET_SAFEAREA_METHOD: *const crate::il2cpp::types::MethodInfo = std::ptr::null();
+pub fn get_safeArea() -> Option<Rect_t> {
+    unsafe {
+        if GET_SAFEAREA_METHOD.is_null() {
+            return None;
+        }
+        let mut exc: *mut crate::il2cpp::types::Il2CppException = std::ptr::null_mut();
+        let result_obj = crate::il2cpp::api::il2cpp_runtime_invoke(
+            GET_SAFEAREA_METHOD,
+            std::ptr::null_mut(),
+            std::ptr::null_mut(),
+            &mut exc,
+        );
+        if !exc.is_null() || result_obj.is_null() {
+            return None;
+        }
+        let unboxed_ptr = crate::il2cpp::api::il2cpp_object_unbox(result_obj) as *const Rect_t;
+        Some(std::ptr::read(unboxed_ptr))
+    }
+}
+
 #[cfg(target_os = "windows")]
 type GetWidthFn = extern "C" fn() -> i32;
 #[cfg(target_os = "windows")]
