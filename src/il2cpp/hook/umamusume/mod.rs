@@ -32,6 +32,10 @@ pub mod StandaloneWindowResize;
 #[cfg(target_os = "windows")]
 mod GallopInput;
 #[cfg(target_os = "windows")]
+mod InputSystemManager;
+#[cfg(target_os = "windows")]
+mod BackKeyInputManager;
+#[cfg(target_os = "windows")]
 pub mod WindowsGamepadControl;
 #[cfg(target_os = "windows")]
 pub mod TapEffectController;
@@ -68,36 +72,33 @@ pub mod AudioManager;
 pub mod MasterCharacterSystemText;
 pub mod ImageCommon;
 pub mod Notification;
-pub mod TimeUtil;
+mod TimeUtil;
 pub mod CameraData;
 pub mod DialogManager;
 pub mod PartsCharaMessageBase;
-
 pub mod SceneManager;
+mod LowResolutionCamera;
 
 #[cfg(target_os = "windows")]
 mod PaymentUtility;
-mod LowResolutionCamera;
-#[cfg(target_os = "windows")]
-mod free_camera;
 #[cfg(target_os = "windows")]
 mod LiveTimelineControl;
 #[cfg(target_os = "windows")]
-mod PostEffectUpdateInfo_DOF;
+pub mod LiveTimelineWorkSheet;
 #[cfg(target_os = "windows")]
-mod DOFUpdateInfoDelegate;
+pub mod LiveTimelineKeyPostFilmDataList;
 #[cfg(target_os = "windows")]
-mod PostFilmUpdateInfoDelegate;
-#[cfg(target_os = "windows")]
-mod LiveTimelineKeyCameraPositionData;
+pub mod LiveTimelineKeyCameraPositionData;
 #[cfg(target_os = "windows")]
 mod LiveTimelineKeyCameraLookAtData;
+#[cfg(target_os = "windows")]
+mod LiveTimelineKeyMultiCameraPositionData;
 #[cfg(target_os = "windows")]
 mod CharacterObject;
 #[cfg(target_os = "windows")]
 mod LiveModelController;
 #[cfg(target_os = "windows")]
-mod ModelController;
+pub mod ModelController;
 #[cfg(target_os = "windows")]
 mod RaceCameraManager;
 #[cfg(target_os = "windows")]
@@ -111,9 +112,11 @@ mod RaceEffectManager;
 #[cfg(target_os = "windows")]
 mod HorseData;
 #[cfg(target_os = "windows")]
-mod HorseRaceInfo;
+pub mod HorseRaceInfo;
 #[cfg(target_os = "windows")]
 mod HorseRaceInfoReplay;
+#[cfg(target_os = "windows")]
+mod PartsScheduleBookAutoPlayScreen;
 pub mod TweenAnimationTimelineComponent;
 pub mod TweenAnimationTimelineData;
 pub mod TweenAnimationTimelineSheetData;
@@ -136,7 +139,10 @@ mod DownloadManager;
 mod DownloadView;
 #[cfg(target_os = "windows")]
 mod DownloadErrorProcessor;
+#[cfg(target_os = "windows")]
 mod TitleViewController;
+#[cfg(target_os = "windows")]
+pub mod MainGameInitializer;
 pub mod Director;
 mod CySpringNative;
 mod PartsHomeCharaMessage;
@@ -153,6 +159,10 @@ pub mod MasterJukeboxSetlistMusicData;
 pub mod HubViewControllerBase;
 mod LiveTheaterInfo;
 pub mod DownloadPathRegister;
+pub mod SceneDefine;
+pub mod GameDefine;
+pub mod MasterDataManager;
+pub mod MasterItemExchangeTop;
 
 pub fn init() {
     get_assembly_image_or_return!(image, "umamusume.dll");
@@ -185,13 +195,6 @@ pub fn init() {
     StoryViewTextControllerSingleMode::init(image);
     JikkyoDisplay::init(image);
     Screen::init(image);
-    #[cfg(target_os = "windows")]
-    {
-        StandaloneWindowResize::init(image);
-        GallopInput::init(image);
-        WindowsGamepadControl::init(image);
-        TapEffectController::init(image);
-    }
     TrainingParamChangePlate::init(image);
     SingleModeUtils::init(image);
     MasterSingleModeTurn::init(image);
@@ -228,26 +231,29 @@ pub fn init() {
     TimeUtil::init(image);
     DialogManager::init(image);
     PartsCharaMessageBase::init(image);
-
     SceneManager::init(image);
+    LowResolutionCamera::init(image);
 
     #[cfg(target_os = "windows")]
     {
+        StandaloneWindowResize::init(image);
+        GallopInput::init(image);
+        InputSystemManager::init(image);
+        BackKeyInputManager::init(image);
+        WindowsGamepadControl::init(image);
+        TapEffectController::init(image);
         PaymentUtility::init(image);
         Connecting::init(image);
         DownloadManager::init(image);
         DownloadView::init(image);
         DownloadErrorProcessor::init(image);
-    }
-    LowResolutionCamera::init(image);
-    #[cfg(target_os = "windows")]
-    {
+        MainGameInitializer::init(image);
         LiveTimelineControl::init(image);
-        PostEffectUpdateInfo_DOF::init(image);
-        DOFUpdateInfoDelegate::init(image);
-        PostFilmUpdateInfoDelegate::init(image);
+        LiveTimelineWorkSheet::init(image);
+        LiveTimelineKeyPostFilmDataList::init(image);
         LiveTimelineKeyCameraPositionData::init(image);
         LiveTimelineKeyCameraLookAtData::init(image);
+        LiveTimelineKeyMultiCameraPositionData::init(image);
         CharacterObject::init(image);
         LiveModelController::init(image);
         ModelController::init(image);
@@ -259,6 +265,8 @@ pub fn init() {
         HorseData::init(image);
         HorseRaceInfo::init(image);
         HorseRaceInfoReplay::init(image);
+        TitleViewController::init(image);
+        PartsScheduleBookAutoPlayScreen::init(image);
     }
     CameraData::init(image);
     TweenAnimationTimelineComponent::init(image);
@@ -275,7 +283,6 @@ pub fn init() {
     DialogMissionListItem::init(image);
     PartsNamePlateBase::init(image);
     PartsSupportCardImproveDetail::init(image);
-    TitleViewController::init(image);
     Director::init(image);
     CySpringNative::init(image);
     PartsHomeCharaMessage::init(image);
@@ -292,4 +299,8 @@ pub fn init() {
     HubViewControllerBase::init(image);
     LiveTheaterInfo::init(image);
     DownloadPathRegister::init(image);
+    SceneDefine::init(image);
+    GameDefine::init(image);
+    MasterDataManager::init(image);
+    MasterItemExchangeTop::init(image);
 }
