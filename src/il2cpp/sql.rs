@@ -223,6 +223,9 @@ pub trait SelectQueryState {
 
     /// Gets the resulting string on the current row's column.
     fn get_text(&self, query: *mut Il2CppObject, idx: i32) -> Option<*mut Il2CppString>;
+
+    /// Gets a tag describing the origin of the data.
+    fn get_origin_tag(&self, _query: *mut Il2CppObject, _idx: i32) -> Option<String> { None }
 }
 
 #[derive(Default)]
@@ -445,6 +448,16 @@ impl SelectQueryState for TextDataQuery {
 
         None
     }
+
+    fn get_origin_tag(&self, _query: *mut Il2CppObject, idx: i32) -> Option<String> {
+        if !self.text.is_select_idx(idx) {
+            return None;
+        }
+
+        let category = self.category.int_value?;
+        let index = self.index.int_value?;
+        Some(format!("T:{}:{}", category, index))
+    }
 }
 
 // character_system_text
@@ -499,6 +512,16 @@ impl SelectQueryState for CharacterSystemTextQuery {
 
         None
     }
+
+    fn get_origin_tag(&self, query: *mut Il2CppObject, idx: i32) -> Option<String> {
+        if !self.text.is_select_idx(idx) {
+            return None;
+        }
+
+        let character_id = self.character_id.int_value?;
+        let voice_id = self.voice_id.value_or_try_get_int(query)?;
+        Some(format!("C:{}:{}", character_id, voice_id))
+    }
 }
 
 // race_jikkyo_comment
@@ -536,6 +559,15 @@ impl SelectQueryState for RaceJikkyoCommentQuery {
 
         None
     }
+
+    fn get_origin_tag(&self, query: *mut Il2CppObject, idx: i32) -> Option<String> {
+        if !self.message.is_select_idx(idx) {
+            return None;
+        }
+
+        let id = self.id.try_get_int(query)?;
+        Some(format!("RJC:{}", id))
+    }
 }
 
 // race_jikkyo_message
@@ -572,6 +604,15 @@ impl SelectQueryState for RaceJikkyoMessageQuery {
         }
 
         None
+    }
+
+    fn get_origin_tag(&self, query: *mut Il2CppObject, idx: i32) -> Option<String> {
+        if !self.message.is_select_idx(idx) {
+            return None;
+        }
+
+        let id = self.id.try_get_int(query)?;
+        Some(format!("RJM:{}", id))
     }
 }
 

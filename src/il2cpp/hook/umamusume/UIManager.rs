@@ -28,7 +28,21 @@ pub fn apply_ui_scale() {
 
     #[cfg(target_os = "windows")]
     {
-        if let Some((width, height)) = crate::windows::utils::get_scaling_res() {
+        if config.windows.freeform_window {
+            if config.windows.freeform_ui_scale_auto {
+                if let Some((width, height)) = crate::windows::wnd_hook::get_client_size() {
+                    let orient_scale = if width < height {
+                        config.windows.freeform_ui_scale_portrait
+                    } else {
+                        config.windows.freeform_ui_scale_landscape
+                    };
+                    scale *= height as f32 / 1080.0 *
+                        config.windows.freeform_ui_scale_auto_ratio * orient_scale;
+                }
+                scale = scale.clamp(0.1, 10.0);
+            }
+        }
+        else if let Some((width, height)) = crate::windows::utils::get_scaling_res() {
             if width < height {
                 scale *= width as f32 / 1080.0;
             }
@@ -39,14 +53,25 @@ pub fn apply_ui_scale() {
     }
 
     let ui_manager = instance();
+    if ui_manager.is_null() {
+        return;
+    }
     let canvas_scaler_list = GetCanvasScalerList(ui_manager);
+    if canvas_scaler_list.this.is_null() {
+        return;
+    }
     for scaler in unsafe { canvas_scaler_list.as_slice().iter() } {
+        if scaler.is_null() {
+            continue;
+        }
         #[cfg(target_os = "android")]
         {
             let res = unsafe { CanvasScaler::get_m_ReferenceResolution(*scaler) };
-            unsafe {
-                (*res).x /= scale;
-                (*res).y /= scale;
+            if !res.is_null() {
+                unsafe {
+                    (*res).x /= scale;
+                    (*res).y /= scale;
+                }
             }
         }
         
@@ -98,6 +123,31 @@ extern "C" fn WaitBootSetup_MoveNext(enumerator: *mut Il2CppObject) -> bool {
         apply_ui_scale();
     }
     moved
+}
+
+#[cfg(target_os = "windows")]
+pub fn refresh_after_window_resize(width: i32, height: i32) {
+    use super::{GraphicSettings, Screen, TapEffectController, WindowsGamepadControl};
+
+    if width <= 0 || height <= 0 {
+        return;
+    }
+
+    Screen::update_original_screen_size(width, height);
+    WindowsGamepadControl::refresh_after_window_resize();
+
+    let this = instance();
+    if !this.is_null() {
+        CreateRenderTextureFromScreen(this);
+        let graphic_settings = GraphicSettings::instance();
+        if !graphic_settings.is_null() {
+            GraphicSettings::Update3DRenderTexture(graphic_settings);
+        }
+        apply_ui_scale();
+    }
+
+    let tap_effect_controller = TapEffectController::instance();
+    TapEffectController::RefreshAll(tap_effect_controller);
 }
 
 #[cfg(target_os = "android")]

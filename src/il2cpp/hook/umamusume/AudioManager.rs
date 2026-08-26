@@ -1,12 +1,12 @@
 use crate::{
     core::{Hachimi, captions, live_utils::AudioPlayback},
     il2cpp::{
-        ext::{Il2CppStringExt, StringExt, Il2CppObjectExt},
-        symbols::{self, get_method_addr, get_field_from_name, SingletonLike, Array},
+        ext::{Il2CppObjectExt, Il2CppStringExt, StringExt},
+        symbols::{self, get_field_from_name, get_method_addr, SingletonLike},
         types::*,
-        api::*
-    }
+    },
 };
+use super::SceneManager;
 
 static mut CLASS: *mut Il2CppClass = 0 as _;
 pub fn class() -> *mut Il2CppClass {
@@ -30,6 +30,10 @@ pub fn get__songPlayback(this: *mut Il2CppObject) -> crate::core::live_utils::Au
 pub fn set__songPlayback(this: *mut Il2CppObject, value: crate::core::live_utils::AudioPlayback) {
     crate::il2cpp::symbols::set_field_value(this, unsafe { _SONGPLAYBACK_FIELD }, &value)
 }
+
+// MasterCharacterSystemText class + method, cached at init() time.
+static mut CST_CLASS: *mut Il2CppClass = 0 as _;
+static mut GET_BY_CHARA_ID_ADDR: usize = 0;
 
 // Cached FieldInfo pointers for MasterCharacterSystemText items.
 // All items in the list share the same class, so we resolve once on first use.
@@ -115,24 +119,17 @@ const EXCEPT_TRAINING_SCENE_ALLOWED_VIEW_IDS: &[i32] = &[5901];
 const SUPPRESS_VIEW_IDS: &[i32] = &[
     101,  // Home
     3200, // Umamusume Stories
+    8320, // "Beyond Memories" Event
 ];
 const EXCEPT_VIEW_IDS: &[i32] = &[
     5212, // Archive — Voices
 ];
 
-/// Fetches the current SceneManager view ID via IL2CPP. Returns 0 on failure.
+/// Fetches the current SceneManager view ID. Returns 0 on failure.
 fn get_current_view_id() -> i32 {
-    (|| -> Option<i32> {
-        let image = symbols::get_assembly_image(c"umamusume.dll").ok()?;
-        let sm_class = symbols::get_class(image, c"Gallop", c"SceneManager").ok()?;
-        let sm = symbols::SingletonLike::new(sm_class)?.instance();
-        if sm.is_null() { return None; }
-        let addr = symbols::get_method_addr_cached(sm_class, c"GetCurrentViewId", 0);
-        if addr == 0 { return None; }
-        let get_view_id: extern "C" fn(*mut Il2CppObject) -> i32 =
-            unsafe { std::mem::transmute(addr) };
-        Some(get_view_id(sm))
-    })().unwrap_or(0)
+    let sm = SceneManager::instance();
+    if sm.is_null() { return 0; }
+    SceneManager::GetCurrentViewId(sm)
 }
 
 /// Looks up the MasterCharacterSystemText entry for the given character + cue,
@@ -149,9 +146,8 @@ fn lookup_cst_entry(chara_id: i32, cue_id: i32, cue_name: &str) -> Option<CstEnt
         return None;
     }
 
-    let image = symbols::get_assembly_image(c"umamusume.dll").ok()?;
-    let master_class = symbols::get_class(image, c"Gallop", c"MasterCharacterSystemText").ok()?;
-    let get_by_chara_id_addr = symbols::get_method_addr_cached(master_class, c"GetByCharaId", 1);
+    // Use class + method addr cached at init() time.
+    let get_by_chara_id_addr = unsafe { GET_BY_CHARA_ID_ADDR };
     if get_by_chara_id_addr == 0 { return None; }
     let get_by_chara_id: extern "C" fn(i32) -> *mut Il2CppObject =
         unsafe { std::mem::transmute(get_by_chara_id_addr) };
@@ -297,59 +293,27 @@ fn lookup_cst_entry(chara_id: i32, cue_id: i32, cue_name: &str) -> Option<CstEnt
 }
 
 fn is_caption_redundant() -> bool {
-    use std::sync::atomic::{AtomicUsize, Ordering};
+    use crate::il2cpp::hook::{
+        umamusume::PartsCharaMessageBase,
+        UnityEngine_CoreModule::{GameObject, Object},
+    };
 
-    // Cached IL2CPP pointers — resolved once, stable for the process lifetime.
-    static PARTS_CLASS: AtomicUsize = AtomicUsize::new(0);
-    static OBJ_CLASS: AtomicUsize = AtomicUsize::new(0);
-    static GO_CLASS: AtomicUsize = AtomicUsize::new(0);
-
-    fn cached_class(cache: &AtomicUsize, asm: &std::ffi::CStr, ns: &std::ffi::CStr, name: &std::ffi::CStr) -> *mut Il2CppClass {
-        let v = cache.load(Ordering::Relaxed);
-        if v != 0 { return v as _; }
-        let img = match symbols::get_assembly_image(asm) { Ok(i) => i, Err(_) => return std::ptr::null_mut() };
-        let cls = match symbols::get_class(img, ns, name) { Ok(c) => c, Err(_) => return std::ptr::null_mut() };
-        cache.store(cls as usize, Ordering::Relaxed);
-        cls
-    }
-
-    let parts_class = cached_class(&PARTS_CLASS, c"umamusume.dll", c"Gallop", c"PartsCharaMessageBase");
-    if parts_class.is_null() { return false; }
-
-    let parts_type = il2cpp_type_get_object(il2cpp_class_get_type(parts_class)) as *mut Il2CppObject;
+    let parts_type = PartsCharaMessageBase::type_object();
     if !parts_type.is_null() {
-        let obj_class = cached_class(&OBJ_CLASS, c"UnityEngine.CoreModule.dll", c"UnityEngine", c"Object");
-        if !obj_class.is_null() {
-            let find_objects_addr = symbols::get_method_addr_cached(obj_class, c"FindObjectsOfType", 2);
-            if find_objects_addr != 0 {
-                let find_objects: extern "C" fn(*mut Il2CppObject, bool) -> Array<*mut Il2CppObject> = unsafe { std::mem::transmute(find_objects_addr) };
-                let objects = find_objects(parts_type, false);
-                if !objects.this.is_null() && objects.len() > 0 {
-                    let get_is_playing_addr = symbols::get_method_addr_cached(parts_class, c"get_IsPlaying", 0);
-                    if get_is_playing_addr != 0 {
-                        let get_is_playing: extern "C" fn(*mut Il2CppObject) -> bool = unsafe { std::mem::transmute(get_is_playing_addr) };
-                        let slice = unsafe { objects.as_slice() };
-                        for obj in slice {
-                            if !obj.is_null() && get_is_playing(*obj) {
-                                return true;
-                            }
-                        }
-                    }
+        let objects = Object::FindObjectsOfType(parts_type, false);
+        if !objects.this.is_null() && objects.len() > 0 {
+            for obj in unsafe { objects.as_slice() } {
+                if !obj.is_null() && PartsCharaMessageBase::get_IsPlaying(*obj) {
+                    return true;
                 }
             }
         }
     }
 
-    let go_class = cached_class(&GO_CLASS, c"UnityEngine.CoreModule.dll", c"UnityEngine", c"GameObject");
-    if !go_class.is_null() {
-        let find_addr = symbols::get_method_addr_cached(go_class, c"Find", 1);
-        if find_addr != 0 {
-            let find: extern "C" fn(*mut Il2CppString) -> *mut Il2CppObject = unsafe { std::mem::transmute(find_addr) };
-            let balloon_path = "/Gallop.GameSystem/SystemManagerRoot/SystemSingleton/UIManager/GameCanvas/MainCanvas/EpisodeCharacterView(Clone)/ContentsRoot/PartsEpisodeList/MidArea/BalloonRoot".to_il2cpp_string();
-            if !find(balloon_path).is_null() {
-                return true;
-            }
-        }
+    let balloon_path = "/Gallop.GameSystem/SystemManagerRoot/SystemSingleton/UIManager/GameCanvas/MainCanvas/EpisodeCharacterView(Clone)/ContentsRoot/PartsEpisodeList/MidArea/BalloonRoot".to_il2cpp_string();
+    let balloon = GameObject::Find(balloon_path);
+    if !balloon.is_null() {
+        return true;
     }
 
     false
@@ -455,6 +419,7 @@ extern "C" fn PlayInternal(this: *mut Il2CppObject, group: SoundGroup,
 
 pub fn init(umamusume: *const Il2CppImage) {
     get_class_or_return!(umamusume, Gallop, AudioManager);
+    get_class_or_return!(umamusume, Gallop, MasterCharacterSystemText);
 
     let play_internal_addr = get_method_addr(AudioManager, c"PlayInternal", 4);
     new_hook!(play_internal_addr, PlayInternal);
@@ -465,5 +430,10 @@ pub fn init(umamusume: *const Il2CppImage) {
         GET_CUE_LENGTH_ADDR = get_method_addr(AudioManager, c"GetCueLength", 2);
         _SONGPLAYBACK_FIELD = get_field_from_name(AudioManager, c"_songPlayback");
         _SONGCHARAPLAYBACKS_FIELD = get_field_from_name(AudioManager, c"_songCharaPlaybacks");
+
+        // Cache MasterCharacterSystemText lookups so lookup_cst_entry pays
+        // no class-resolution cost on the hot caption path.
+        CST_CLASS = MasterCharacterSystemText;
+        GET_BY_CHARA_ID_ADDR = get_method_addr(MasterCharacterSystemText, c"GetByCharaId", 1);
     }
 }

@@ -84,6 +84,11 @@ type SetResolutionInjectedFn = extern "C" fn(width: i32, height: i32, fullscreen
 #[cfg(target_os = "windows")]
 extern "C" fn SetResolution_Injected(width: i32, height: i32, full_screen_mode: i32, preferred_refresh_rate: *const RefreshRate) {
     let windows_config = &Hachimi::instance().config.load().windows;
+    if windows_config.freeform_window {
+        crate::il2cpp::hook::umamusume::StandaloneWindowResize::set_is_prevent_reshape(true);
+        return;
+    }
+
     if windows_config.auto_full_screen {
         if apply_auto_full_screen(width, height) {
             // Re-apply topmost after auto-fullscreen resolution change
@@ -98,6 +103,24 @@ extern "C" fn SetResolution_Injected(width: i32, height: i32, full_screen_mode: 
     // Windows resets the Z-order when the game transitions between portrait
     // and landscape (stories, lives, races), losing the "stay on top" state.
     re_apply_topmost();
+}
+
+#[cfg(target_os = "windows")]
+// Directly invokes the original SetResolution_Injected icall, bypassing the
+// freeform/auto-fullscreen hooks above. Used by the freeform Alt+Enter toggle.
+pub fn set_resolution_direct(width: i32, height: i32, fullscreen_mode: i32, preferred_refresh_rate: *const RefreshRate) {
+    get_orig_fn!(SetResolution_Injected, SetResolutionInjectedFn)(width, height, fullscreen_mode, preferred_refresh_rate);
+}
+
+#[cfg(target_os = "windows")]
+type RequestOrientationFn = extern "C" fn(orientation: ScreenOrientation);
+#[cfg(target_os = "windows")]
+extern "C" fn RequestOrientation(orientation: ScreenOrientation) {
+    if Hachimi::instance().config.load().windows.freeform_window {
+        return;
+    }
+
+    get_orig_fn!(RequestOrientation, RequestOrientationFn)(orientation);
 }
 
 #[cfg(target_os = "windows")]
@@ -211,6 +234,9 @@ pub fn init(UnityEngine_CoreModule: *const Il2CppImage) {
 
         new_hook!(SetResolution_Injected_addr, SetResolution_Injected);
 
+        let RequestOrientation_addr = il2cpp_resolve_icall(c"UnityEngine.Screen::RequestOrientation()".as_ptr());
+        new_hook!(RequestOrientation_addr, RequestOrientation);
+
         let get_Width_addr = resolve_screen_method(Screen, c"get_Width", c"get_width");
         let get_Height_addr = resolve_screen_method(Screen, c"get_Height", c"get_height");
 
@@ -235,6 +261,13 @@ pub fn init(UnityEngine_CoreModule: *const Il2CppImage) {
         #[cfg(target_os = "android")]
         if SET_SLEEPTIMEOUT_ADDR != 0 {
             new_hook!(SET_SLEEPTIMEOUT_ADDR, set_sleepTimeout_hook);
+        }
+
+        if let Ok(method) = crate::il2cpp::symbols::get_method(Screen, c"get_safeArea", 0) {
+            GET_SAFEAREA_METHOD = method;
+            info!("UnityEngine.Screen::get_safeArea method resolved successfully");
+        } else {
+            warn!("Failed to resolve UnityEngine.Screen::get_safeArea");
         }
     }
 }

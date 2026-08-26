@@ -9,6 +9,7 @@ pub mod hachimi_impl;
 pub mod interceptor_impl;
 pub mod gui_impl;
 pub mod wnd_hook;
+pub mod free_camera;
 mod ffi;
 pub mod steamworks;
 pub mod discord;

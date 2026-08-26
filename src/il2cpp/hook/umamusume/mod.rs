@@ -89,12 +89,90 @@ mod DownloadView;
 mod HttpHelper;
 mod DownloadErrorProcessor;
 mod TitleViewController;
-mod Director;
+pub mod Director;
 mod CySpringNative;
 mod CySpringUpdater;
 mod PartsRaceAnalyzeRaceEventListItem;
 
 pub mod AudioManager;
+
+// Ported from kairusds/Hachimi-Edge (additive merge)
+pub mod StoryViewTextControllerBase;
+#[cfg(target_os = "windows")]
+pub mod StandaloneWindowResize;
+#[cfg(target_os = "windows")]
+mod GallopInput;
+#[cfg(target_os = "windows")]
+mod InputSystemManager;
+#[cfg(target_os = "windows")]
+mod BackKeyInputManager;
+#[cfg(target_os = "windows")]
+pub mod WindowsGamepadControl;
+#[cfg(target_os = "windows")]
+pub mod TapEffectController;
+pub mod MasterCharacterSystemText;
+pub mod Notification;
+#[cfg(target_os = "windows")]
+mod LiveTimelineControl;
+#[cfg(target_os = "windows")]
+pub mod LiveTimelineWorkSheet;
+#[cfg(target_os = "windows")]
+pub mod LiveTimelineKeyPostFilmDataList;
+#[cfg(target_os = "windows")]
+pub mod LiveTimelineKeyCameraPositionData;
+#[cfg(target_os = "windows")]
+mod LiveTimelineKeyCameraLookAtData;
+#[cfg(target_os = "windows")]
+mod LiveTimelineKeyMultiCameraPositionData;
+#[cfg(target_os = "windows")]
+mod CharacterObject;
+#[cfg(target_os = "windows")]
+mod LiveModelController;
+#[cfg(target_os = "windows")]
+pub mod ModelController;
+#[cfg(target_os = "windows")]
+mod RaceCameraManager;
+#[cfg(target_os = "windows")]
+mod RaceCameraEventBase;
+#[cfg(target_os = "windows")]
+mod RaceModelController;
+#[cfg(target_os = "windows")]
+mod RaceViewBase;
+#[cfg(target_os = "windows")]
+mod RaceEffectManager;
+#[cfg(target_os = "windows")]
+mod HorseData;
+#[cfg(target_os = "windows")]
+pub mod HorseRaceInfo;
+#[cfg(target_os = "windows")]
+mod HorseRaceInfoReplay;
+#[cfg(target_os = "windows")]
+mod PartsScheduleBookAutoPlayScreen;
+pub mod PartsNickNameRibbon;
+mod PartsNickNameListItem;
+mod PartsGetSkillPlate;
+mod DialogMissionListItem;
+mod PartsNamePlateBase;
+mod PartsSupportCardImproveDetail;
+#[cfg(target_os = "windows")]
+pub mod MainGameInitializer;
+pub mod LiveViewController;
+pub mod LiveTimeController;
+pub mod HomeViewController;
+pub mod WorkDataManager;
+pub mod AssetManager;
+pub mod WorkJukeboxData;
+pub mod JukeboxBgmSelector;
+pub mod JukeboxHomeTopUI;
+pub mod TempData;
+pub mod MasterJukeboxSetlistMusicData;
+pub mod HubViewControllerBase;
+mod LiveTheaterInfo;
+pub mod DownloadPathRegister;
+pub mod SceneDefine;
+pub mod GameDefine;
+pub mod MasterDataManager;
+pub mod MasterItemExchangeTop;
 
 pub fn init() {
     get_assembly_image_or_return!(image, "umamusume.dll");
@@ -195,4 +273,60 @@ pub fn init() {
     PartsRaceAnalyzeRaceEventListItem::init(image);
     AudioManager::init(image);
     LiveStreamingCommentScriptableObject::init(image);
+
+    // Ported from kairusds/Hachimi-Edge (additive merge)
+    StoryViewTextControllerBase::init(image);
+    #[cfg(target_os = "windows")]
+    {
+        StandaloneWindowResize::init(image);
+        GallopInput::init(image);
+        InputSystemManager::init(image);
+        BackKeyInputManager::init(image);
+        WindowsGamepadControl::init(image);
+        TapEffectController::init(image);
+        MainGameInitializer::init(image);
+        LiveTimelineControl::init(image);
+        LiveTimelineWorkSheet::init(image);
+        LiveTimelineKeyPostFilmDataList::init(image);
+        LiveTimelineKeyCameraPositionData::init(image);
+        LiveTimelineKeyCameraLookAtData::init(image);
+        LiveTimelineKeyMultiCameraPositionData::init(image);
+        CharacterObject::init(image);
+        LiveModelController::init(image);
+        ModelController::init(image);
+        RaceCameraManager::init(image);
+        RaceCameraEventBase::init(image);
+        RaceModelController::init(image);
+        RaceViewBase::init(image);
+        RaceEffectManager::init(image);
+        HorseData::init(image);
+        HorseRaceInfo::init(image);
+        HorseRaceInfoReplay::init(image);
+        PartsScheduleBookAutoPlayScreen::init(image);
+    }
+    MasterCharacterSystemText::init(image);
+    Notification::init(image);
+    PartsNickNameRibbon::init(image);
+    PartsNickNameListItem::init(image);
+    PartsGetSkillPlate::init(image);
+    DialogMissionListItem::init(image);
+    PartsNamePlateBase::init(image);
+    PartsSupportCardImproveDetail::init(image);
+    LiveViewController::init(image);
+    LiveTimeController::init(image);
+    HomeViewController::init(image);
+    WorkDataManager::init(image);
+    AssetManager::init(image);
+    WorkJukeboxData::init(image);
+    JukeboxBgmSelector::init(image);
+    JukeboxHomeTopUI::init(image);
+    TempData::init(image);
+    MasterJukeboxSetlistMusicData::init(image);
+    HubViewControllerBase::init(image);
+    LiveTheaterInfo::init(image);
+    DownloadPathRegister::init(image);
+    SceneDefine::init(image);
+    GameDefine::init(image);
+    MasterDataManager::init(image);
+    MasterItemExchangeTop::init(image);
 }

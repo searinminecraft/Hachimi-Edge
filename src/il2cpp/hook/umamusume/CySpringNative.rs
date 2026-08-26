@@ -24,11 +24,14 @@ type UpdateForceFn = extern "C" fn(
 );
 
 extern "C" fn UpdateForce(
-    cloth_working: *mut std::ffi::c_void, stiffness_force_rate: f32, drag_force_rate: f32,
+    cloth_working: *mut std::ffi::c_void, mut stiffness_force_rate: f32, mut drag_force_rate: f32,
     gravity_rate: f32, wind_power: Vector3_t, wind_strength: f32,
     position_diff: Vector3_t, mut frame_scale: f32
 ) {
     let config = Hachimi::instance().config.load();
+    stiffness_force_rate *= config.cyspring_stiffness_force_rate_scale;
+    drag_force_rate *= config.cyspring_drag_force_rate_scale;
+
     if config.physics_update_mode == Some(super::CySpringController::SpringUpdateMode::Mode60FPS) {
         let target_fps = config.target_fps.map(|v| v.clamp(30, 240)).unwrap_or(60) as f32;
         frame_scale = if config.cyspring_mono_uncap_frame_scale {

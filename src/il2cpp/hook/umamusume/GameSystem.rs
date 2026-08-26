@@ -1,4 +1,10 @@
 use crate::{core::{Hachimi, game::Region}, il2cpp::{symbols::{IEnumerator, MoveNextFn, SingletonLike, get_method_addr}, types::*}};
+#[cfg(target_os = "windows")]
+use crate::windows::free_camera::{self, CameraScene};
+#[cfg(target_os = "windows")]
+use crate::core::live_utils;
+#[cfg(target_os = "windows")]
+use super::Director;
 // use std::sync::atomic::{AtomicBool, Ordering};
 
 // pub static GAME_INITIALIZED: AtomicBool = AtomicBool::new(false);
@@ -17,6 +23,37 @@ pub fn instance() -> *mut Il2CppObject {
 
 static mut SOFTWARERESET_ADDR: usize = 0;
 impl_addr_wrapper_fn!(SoftwareReset, SOFTWARERESET_ADDR, (), this: *mut Il2CppObject);
+
+#[cfg(target_os = "windows")]
+type GameSystemUpdateFn = extern "C" fn(this: *mut Il2CppObject);
+#[cfg(target_os = "windows")]
+fn apply_free_camera_live_pause_request() {
+    if !free_camera::take_toggle_live_pause_request() {
+        return;
+    }
+    live_utils::toggle_live_pause();
+}
+
+#[cfg(target_os = "windows")]
+extern "C" fn GameSystem_Update(this: *mut Il2CppObject) {
+    apply_free_camera_live_pause_request();
+
+    // Live and race normally tick from their camera LateUpdate hooks. Keep the
+    // global update path only as a fallback while LiveTimelineControl is paused.
+    if Director::is_live_paused() && free_camera::scene() == CameraScene::Live {
+        free_camera::tick();
+        apply_free_camera_live_pause_request();
+    }
+    get_orig_fn!(GameSystem_Update, GameSystemUpdateFn)(this);
+}
+
+#[cfg(target_os = "windows")]
+type GameSystemLateUpdateFn = extern "C" fn(this: *mut Il2CppObject);
+#[cfg(target_os = "windows")]
+extern "C" fn GameSystem_LateUpdate(this: *mut Il2CppObject) {
+    get_orig_fn!(GameSystem_LateUpdate, GameSystemLateUpdateFn)(this);
+    Director::apply_paused_free_camera();
+}
 
 // good hook for initializing values i guess
 pub fn on_game_initialized() {
@@ -49,8 +86,6 @@ extern "C" fn InitializeGame_MoveNext(enumerator: *mut Il2CppObject) -> bool {
 }
 
 fn InitializeGameCommon(enumerator: IEnumerator) -> IEnumerator {
-    if Hachimi::instance().config.load().ui_scale == 1.0 { return enumerator; }
-
     if let Err(e) = enumerator.hook_move_next(InitializeGame_MoveNext) {
         error!("Failed to hook InitializeGame enumerator: {}", e);
     }
@@ -85,5 +120,13 @@ pub fn init(umamusume: *const Il2CppImage) {
     unsafe {
         CLASS = GameSystem;
         SOFTWARERESET_ADDR = get_method_addr(GameSystem, c"SoftwareReset", 0);
+    }
+
+    #[cfg(target_os = "windows")]
+    {
+        let GameSystem_Update_addr = get_method_addr(GameSystem, c"Update", 0);
+        new_hook!(GameSystem_Update_addr, GameSystem_Update);
+        let GameSystem_LateUpdate_addr = get_method_addr(GameSystem, c"LateUpdate", 0);
+        new_hook!(GameSystem_LateUpdate_addr, GameSystem_LateUpdate);
     }
 }

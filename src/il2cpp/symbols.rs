@@ -207,6 +207,10 @@ pub unsafe fn get_field_ptr<T>(obj: *mut Il2CppObject, field: *mut FieldInfo) ->
     unsafe { (obj as usize + (*field).offset as usize) as _ }
 }
 
+pub fn set_static_field_value<T>(field: *mut FieldInfo, value: T) {
+    il2cpp_field_static_set_value(field, std::ptr::from_ref(&value) as _);
+}
+
 pub fn set_field_value<T>(obj: *mut Il2CppObject, field: *mut FieldInfo, value: &T) {
     il2cpp_field_set_value(obj, field, std::ptr::from_ref(value) as _);
 }
@@ -703,8 +707,8 @@ impl<T> Array<T> {
         self.this.add(1) as _
     }
 
-    pub unsafe fn as_slice(&self) -> &[T] {
-        std::slice::from_raw_parts(self.data_ptr(), (*self.this).max_length)
+    pub unsafe fn as_slice(&self) -> &mut [T] {
+        std::slice::from_raw_parts_mut(self.data_ptr(), (*self.this).max_length)
     }
 
     pub unsafe fn as_mut_slice(&mut self) -> &mut [T] {

@@ -35,6 +35,9 @@ impl_addr_wrapper_fn!(set_horizontalOverflow, SET_HORIZONTALOVERFLOW_ADDR, (), t
 static mut SET_VERTICALOVERFLOW_ADDR: usize = 0;
 impl_addr_wrapper_fn!(set_verticalOverflow, SET_VERTICALOVERFLOW_ADDR, (), this: *mut Il2CppObject, value: i32);
 
+static mut GET_RESIZETEXTFORBESTFIT_ADDR: usize = 0;
+impl_addr_wrapper_fn!(get_resizeTextForBestFit, GET_RESIZETEXTFORBESTFIT_ADDR, bool, this: *mut Il2CppObject);
+
 static mut SET_RESIZETEXTFORBESTFIT_ADDR: usize = 0;
 impl_addr_wrapper_fn!(set_resizeTextForBestFit, SET_RESIZETEXTFORBESTFIT_ADDR, (), this: *mut Il2CppObject, value: bool);
 
@@ -61,6 +64,18 @@ impl_addr_wrapper_fn!(set_richText, SET_RICHTEXT_ADDR, (), this: *mut Il2CppObje
 
 static mut GET_PREFERREDHEIGHT_ADDR: usize = 0;
 impl_addr_wrapper_fn!(get_preferredHeight, GET_PREFERREDHEIGHT_ADDR, f32, this: *mut Il2CppObject);
+
+static mut GET_PREFERREDWIDTH_ADDR: usize = 0;
+impl_addr_wrapper_fn!(get_preferredWidth, GET_PREFERREDWIDTH_ADDR, f32, this: *mut Il2CppObject);
+
+// Ported from kairusds/Hachimi-Edge — text layout helper, uses the existing
+// resizeTextForBestFit API already exposed in this module (no new addresses).
+pub fn set_best_fit_downscale(this: *mut Il2CppObject) {
+    let cur_size = get_fontSize(this);
+    set_resizeTextMinSize(this, cur_size.min(10));
+    set_resizeTextMaxSize(this, cur_size);
+    set_resizeTextForBestFit(this, true);
+}
 
 struct ActiveTextComponent {
     handle: GCHandle,
@@ -150,6 +165,7 @@ pub fn init(UnityEngine_UI: *const Il2CppImage) {
         SET_FONT_ADDR = get_method_addr(Text, c"set_font", 1);
         SET_HORIZONTALOVERFLOW_ADDR = get_method_addr(Text, c"set_horizontalOverflow", 1);
         SET_VERTICALOVERFLOW_ADDR = get_method_addr(Text, c"set_verticalOverflow", 1);
+        GET_RESIZETEXTFORBESTFIT_ADDR = get_method_addr(Text, c"get_resizeTextForBestFit", 0);
         SET_RESIZETEXTFORBESTFIT_ADDR = get_method_addr(Text, c"set_resizeTextForBestFit", 1);
         SET_RESIZETEXTMINSIZE_ADDR = get_method_addr(Text, c"set_resizeTextMinSize", 1);
         SET_RESIZETEXTMAXSIZE_ADDR = get_method_addr(Text, c"set_resizeTextMaxSize", 1);
@@ -158,6 +174,7 @@ pub fn init(UnityEngine_UI: *const Il2CppImage) {
         SET_SUPPORTRICHTEXT_ADDR = get_method_addr(Text, c"set_supportRichText", 1);
         SET_ALIGNMENT_ADDR = get_method_addr(Text, c"set_alignment", 1);
         GET_PREFERREDHEIGHT_ADDR = get_method_addr(Text, c"get_preferredHeight", 0);
+        GET_PREFERREDWIDTH_ADDR = get_method_addr(Text, c"get_preferredWidth", 0);
         SET_RICHTEXT_ADDR = get_method_addr(Text, c"set_supportRichText", 1);
     }
 }

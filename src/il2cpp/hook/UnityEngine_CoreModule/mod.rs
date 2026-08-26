@@ -1,4 +1,5 @@
 pub mod Texture2D;
+pub mod Camera;
 pub mod Resources;
 pub mod Sprite;
 pub mod Object;
@@ -33,11 +34,13 @@ pub const TextureFormat_RGBA32: i32 = 4;
 
 pub const FullScreenMode_ExclusiveFullScreen: i32 = 0;
 pub const FullScreenMode_FullScreenWindow: i32 = 1;
+pub const FullScreenMode_Windowed: i32 = 3;
 
 pub fn init() {
     get_assembly_image_or_return!(image, "UnityEngine.CoreModule.dll");
 
     Texture2D::init(image);
+    Camera::init(image);
     Resources::init(image);
     Sprite::init(image);
     Object::init(image);

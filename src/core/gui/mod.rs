@@ -135,6 +135,7 @@ const PIXELS_PER_POINT_RATIO: f32 = 3.0 / 1080.0;
 static INSTANCE: OnceCell<Mutex<Gui>> = OnceCell::new();
 pub static IS_CONSUMING_INPUT: AtomicBool = AtomicBool::new(false);
 pub static WANTS_INPUT: AtomicBool = AtomicBool::new(false);
+pub static GUI_INPUT_ACTIVE: AtomicBool = AtomicBool::new(false);
 pub static IS_LIVE_SCENE: AtomicBool = AtomicBool::new(false);
 pub static IS_LIVE_SLIDER_ACTIVE: AtomicBool = AtomicBool::new(false);
 static LIVE_SLIDER_SCENE_HANDLE: atomic::AtomicI32 = atomic::AtomicI32::new(-1);
@@ -594,8 +595,9 @@ impl Gui {
                 }
             };
 
+            let (_, safe_bottom) = get_safe_insets(ctx);
             egui::Area::new(egui::Id::new("live_slider_area"))
-                .anchor(egui::Align2::CENTER_BOTTOM, egui::vec2(0.0, -24.0 * scale))
+                .anchor(egui::Align2::CENTER_BOTTOM, egui::vec2(0.0, -(24.0 * scale + safe_bottom)))
                 .order(egui::Order::Foreground)
                 .show(ctx, |ui| {
                     egui::Frame::NONE
@@ -840,21 +842,57 @@ impl Gui {
 
         let ctx = self.context.clone();
         self.run_live_slider(&ctx);
+        #[cfg(target_os = "windows")]
+        self.run_free_camera_overlay(&ctx);
 
         let wants_pointer = self.context.wants_pointer_input()
             || self.context.is_pointer_over_area()
             || self.context.wants_keyboard_input();
         let has_interactive_widgets =
             IS_LIVE_SLIDER_ACTIVE.load(atomic::Ordering::Relaxed) && wants_pointer;
+        #[cfg(target_os = "windows")]
+        let free_camera_input_capture = crate::windows::free_camera::wants_windows_input_capture();
+        #[cfg(not(target_os = "windows"))]
+        let free_camera_input_capture = false;
 
-        IS_CONSUMING_INPUT.store(
-            self.is_consuming_input() || has_interactive_widgets,
+        GUI_INPUT_ACTIVE.store(
+            self.menu_visible || !self.windows.is_empty(),
             atomic::Ordering::Release,
         );
 
-        WANTS_INPUT.store(wants_pointer, atomic::Ordering::Release);
+        IS_CONSUMING_INPUT.store(
+            self.is_consuming_input() || has_interactive_widgets || free_camera_input_capture,
+            atomic::Ordering::Release,
+        );
+
+        WANTS_INPUT.store(wants_pointer || free_camera_input_capture, atomic::Ordering::Release);
 
         self.context.end_pass()
+    }
+
+    #[cfg(target_os = "windows")]
+    fn run_free_camera_overlay(&mut self, ctx: &egui::Context) {
+        let Some((content, alpha)) = crate::windows::free_camera::overlay_message() else {
+            return;
+        };
+
+        let scale = get_scale(ctx);
+        let fill = egui::Color32::from_black_alpha((170.0 * alpha) as u8);
+        let text = egui::Color32::WHITE.linear_multiply(alpha);
+
+        egui::Area::new(egui::Id::new("free_camera_overlay"))
+            .anchor(egui::Align2::RIGHT_TOP, egui::vec2(-16.0 * scale, 16.0 * scale))
+            .show(ctx, |ui| {
+                egui::Frame::NONE
+                    .fill(fill)
+                    .inner_margin(egui::Margin::symmetric((10.0 * scale) as i8, (6.0 * scale) as i8))
+                    .corner_radius(6.0 * scale)
+                    .show(ui, |ui| {
+                        ui.set_min_width(260.0 * scale);
+                        ui.visuals_mut().override_text_color = Some(text);
+                        ui.label(content);
+                    });
+            });
     }
 
     const ICON_IMAGE: egui::ImageSource<'static> = egui::include_image!("../../../assets/icon.png");
@@ -1137,6 +1175,9 @@ impl Gui {
                                 }
                                 if ConfigEditor::list_tile_button(ui, t!("menu.open_first_time_setup")) {
                                     show_window = Some(Box::new(FirstTimeSetupWindow::new()));
+                                }
+                                if ConfigEditor::list_tile_button(ui, t!("menu.change_translation_repo")) {
+                                    show_window = Some(Box::new(RepoSwitcherWindow::new()));
                                 }
 
                                 section_heading(ui, t!("menu.graphics_heading").into_owned());
@@ -1475,9 +1516,7 @@ impl Gui {
                                 }
 
                                 let (_, safe_bottom) = get_safe_insets(ui.ctx());
-                                if safe_bottom > 0.0 {
-                                    ui.add_space(safe_bottom);
-                                }
+                                ui.add_space((16.0 * scale) + safe_bottom);
                             });
                         });
                     });
@@ -1943,11 +1982,12 @@ impl Gui {
             let max_w = (ctx.content_rect().width() - 32.0 * scale).max(120.0 * scale);
             let rounding = Hachimi::instance().config.load().ui_window_rounding;
             let corner_radius = rounding * scale;
+            let (_, safe_bottom) = get_safe_insets(ctx);
             let inner = egui::Area::new(egui::Id::new("snackbar").with(s.id))
                 .order(egui::Order::Foreground)
                 .anchor(
                     egui::Align2::CENTER_BOTTOM,
-                    egui::vec2(0.0, -(48.0 * scale + offset)),
+                    egui::vec2(0.0, -(48.0 * scale + offset + safe_bottom)),
                 )
                 .show(ctx, |ui| {
                     ui.set_max_width(max_w);
@@ -1991,16 +2031,28 @@ impl Gui {
     }
 
     pub fn is_empty(&self) -> bool {
+        #[cfg(target_os = "windows")]
+        let free_camera_overlay = crate::windows::free_camera::has_overlay_message();
+        #[cfg(not(target_os = "windows"))]
+        let free_camera_overlay = false;
+
         !self.splash_visible
             && !self.menu_visible
             && !self.update_progress_visible
             && self.notifications.is_empty()
             && self.windows.is_empty()
             && !IS_LIVE_SCENE.load(atomic::Ordering::Relaxed)
+            && !free_camera_overlay
+    }
+
+    pub fn is_gui_input_active_atomic() -> bool {
+        GUI_INPUT_ACTIVE.load(atomic::Ordering::Acquire)
     }
 
     pub fn is_consuming_input(&self) -> bool {
-        self.menu_visible || !self.windows.is_empty()
+        self.menu_visible
+            || !self.windows.is_empty()
+            || IS_LIVE_SLIDER_ACTIVE.load(atomic::Ordering::Acquire)
     }
 
     pub fn is_consuming_input_atomic() -> bool {
@@ -2167,6 +2219,42 @@ impl AppWindow for ConfigEditor {
 }
 
 impl ConfigEditor {
+    // ── Search bar ──────────────────────────────────────────────────────────
+    fn run_search_bar(ui: &mut egui::Ui, search_term: &mut String, scale: f32) {
+        let pad_h = LIST_TILE_PAD_H * scale;
+        egui::Frame::NONE
+            .inner_margin(egui::Margin::symmetric(pad_h as i8, (2.0 * scale) as i8))
+            .show(ui, |ui| {
+                ui.horizontal(|ui| {
+                    ui.spacing_mut().item_spacing.x = 6.0 * scale;
+                    let has_clear = !search_term.is_empty();
+                    let clear_btn_w = if has_clear { 32.0 * scale } else { 0.0 };
+                    let total_avail = ui.available_width();
+                    let field_w = if has_clear {
+                        (total_avail - clear_btn_w - 6.0 * scale).max(40.0)
+                    } else {
+                        total_avail
+                    };
+
+                    ui.allocate_ui_with_layout(
+                        egui::vec2(field_w, 40.0 * scale),
+                        egui::Layout::left_to_right(egui::Align::Center),
+                        |ui| {
+                            ui.set_min_width(field_w);
+                            ui.set_max_width(field_w);
+                            ui.add(MaterialTextField::filled(search_term).hint_text(t!("search_filter")));
+                        },
+                    );
+                    if has_clear {
+                        if ui.add(MaterialButton::text("\u{e5cd}").small()).clicked() {
+                            search_term.clear();
+                        }
+                    }
+                });
+            });
+        ui.add_space(2.0 * scale);
+    }
+
     // ── Portrait layout ─────────────────────────────────────────────────────
     #[allow(clippy::too_many_arguments)]
     fn run_portrait_layout(
@@ -2187,7 +2275,10 @@ impl ConfigEditor {
 
         let tab_h = 48.0 * scale;
         let action_bar_h = 48.0 * scale;
-        let scroll_h = (ui.available_height() - action_bar_h - tab_h - 7.0 * scale).max(40.0);
+        let search_h = 44.0 * scale;
+        let scroll_h = (ui.available_height() - action_bar_h - tab_h - search_h - 7.0 * scale).max(40.0);
+
+        Self::run_search_bar(ui, &mut self.search_term, scale);
 
         egui::ScrollArea::vertical()
             .id_salt("portrait_body_scroll")
@@ -2262,6 +2353,7 @@ impl ConfigEditor {
     ) {
         let action_bar_h = 48.0 * scale;
         let content_h    = ui.available_height();
+        let search_h     = 44.0 * scale;
         let body_h       = (content_h - action_bar_h - 16.0 * scale).max(40.0);
 
         let rail_w = MaterialNavigationRail::WIDTH * scale;
@@ -2290,9 +2382,10 @@ impl ConfigEditor {
                 });
 
                 ui.with_layout(egui::Layout::top_down(egui::Align::Min), |ui| {
+                    Self::run_search_bar(ui, &mut self.search_term, scale);
                     egui::ScrollArea::vertical()
                         .id_salt("landscape_body_scroll")
-                        .max_height(body_h)
+                        .max_height((body_h - search_h).max(40.0))
                         .show(ui, |ui| {
                             ui.set_width(body_w);
                             egui::Frame::NONE
@@ -2353,9 +2446,48 @@ fn strip_icon(label: &str) -> &str {
     label
 }
 
+/// Pending custom title to apply on the main thread after a config save.
+/// Avoids touching the game window from a spawned thread (GC/lifetime hazard).
+#[cfg(target_os = "windows")]
+static PENDING_TITLE: Mutex<Option<Option<String>>> = Mutex::new(None);
+
+#[cfg(target_os = "windows")]
+fn apply_pending_title() {
+    Thread::main_thread().schedule(move || {
+        let hwnd = crate::windows::wnd_hook::get_target_hwnd();
+        let title = PENDING_TITLE.lock().unwrap().take().flatten();
+        use ::windows::{core::HSTRING, Win32::UI::WindowsAndMessaging::SetWindowTextW};
+        if let Some(t) = title {
+            let _ = unsafe { SetWindowTextW(hwnd, &HSTRING::from(t.as_str())) };
+        } else {
+            let hachimi = Hachimi::instance();
+            let default_title = if hachimi.game.region == crate::core::game::Region::Japan
+                && hachimi.game.is_steam_release
+            {
+                HSTRING::from("UmamusumePrettyDerby_Jpn")
+            } else {
+                HSTRING::from("umamusume")
+            };
+            let _ = unsafe { SetWindowTextW(hwnd, &default_title) };
+        }
+    });
+}
+
 pub fn save_and_reload_config(config: hachimi::Config) {
+    #[cfg(target_os = "windows")]
+    {
+        *PENDING_TITLE.lock().unwrap() = Some(config.custom_title_name.clone());
+    }
     let notif = match Hachimi::instance().save_and_reload_config(config) {
-        Ok(_) => t!("notification.config_saved").into_owned(),
+        Ok(_) => {
+            #[cfg(target_os = "windows")]
+            {
+                crate::windows::wnd_hook::apply_freeform_window_config();
+                crate::windows::free_camera::reload_runtime_config();
+                apply_pending_title();
+            }
+            t!("notification.config_saved").into_owned()
+        },
         Err(e) => t!("notification.error_occurred", reason = e.to_string()).into_owned(),
     };
 
@@ -2631,6 +2763,7 @@ mod preservation_tests {
 
 pub enum NotificationRequest {
     TLRepoChanged,
+    TLFolderMissing,
     Custom(String),
 }
 
@@ -2642,6 +2775,11 @@ pub fn request_notification(req: NotificationRequest) {
                 NotificationRequest::TLRepoChanged => {
                     gui.show_notification(&rust_i18n::t!("notification.tl_repo_changed"));
                 }
+                NotificationRequest::TLFolderMissing => {
+                    gui.show_notification(&rust_i18n::t!(
+                        "notification.tl_repo_folder_missing"
+                    ));
+                }
                 NotificationRequest::Custom(msg) => {
                     gui.show_notification(&msg);
                 }
@@ -2652,21 +2790,21 @@ pub fn request_notification(req: NotificationRequest) {
 
 #[cfg(target_os = "android")]
 pub fn get_safe_insets(ctx: &egui::Context) -> (f32, f32) {
+    let ppp = ctx.pixels_per_point();
     let hachimi = crate::core::Hachimi::instance();
     if hachimi.hooking_finished.load(std::sync::atomic::Ordering::Relaxed) {
         if let Some(rect) = crate::il2cpp::hook::UnityEngine_CoreModule::Screen::get_safeArea() {
-            let screen_h = ctx.content_rect().height();
-            let safe_bottom = rect.y;
-            let safe_top = screen_h - rect.y - rect.height;
+            let screen_h_px = ctx.content_rect().height() * ppp;
+            let safe_bottom = (rect.y / ppp).max(0.0);
+            let safe_top = ((screen_h_px - rect.y - rect.height) / ppp).max(0.0);
             if safe_top > 0.0 || safe_bottom > 0.0 {
-                return (safe_top.max(0.0), safe_bottom.max(0.0));
+                return (safe_top, safe_bottom);
             }
         }
     }
 
     let (top_px, bottom_px) = crate::android::utils::get_safe_insets_jni();
     if top_px > 0.0 || bottom_px > 0.0 {
-        let ppp = ctx.pixels_per_point();
         return (top_px / ppp, bottom_px / ppp);
     }
 

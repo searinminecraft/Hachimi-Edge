@@ -22,7 +22,11 @@ pub fn render(editor: &ConfigEditor, config: &mut crate::core::hachimi::Config, 
             (SpringUpdateMode::SkipFramePostAlways.into(), "SkipFramePostAlways"),
         ]);
     ConfigEditor::list_tile_switch(ui, t!("config_editor.cyspring_mono_uncap_frame_scale"), &mut config.cyspring_mono_uncap_frame_scale, true);
-    ConfigEditor::list_tile_switch_described(ui, t!("config_editor.cyspring_disable_native"), &mut config.cyspring_disable_native, true, t!("config_editor.cyspring_disable_native_desc"));
+    if config.cyspring_mono_uncap_frame_scale {
+        ConfigEditor::list_tile_switch_described(ui, t!("config_editor.cyspring_disable_native"), &mut config.cyspring_disable_native, true, t!("config_editor.cyspring_disable_native_desc"));
+        ConfigEditor::list_tile_slider(ui, t!("config_editor.cyspring_stiffness_force_rate_scale"), &mut config.cyspring_stiffness_force_rate_scale, 0.1..=3.0, 0.05, 2);
+        ConfigEditor::list_tile_slider(ui, t!("config_editor.cyspring_drag_force_rate_scale"), &mut config.cyspring_drag_force_rate_scale, 0.1..=3.0, 0.05, 2);
+    }
     ConfigEditor::list_tile_slider(ui, t!("config_editor.story_choice_auto_select_delay"), &mut config.story_choice_auto_select_delay, 0.1..=10.0, 0.05, 2);
     ConfigEditor::list_tile_slider(ui, t!("config_editor.story_text_speed_multiplier"), &mut config.story_tcps_multiplier, 0.1..=10.0, 0.1, 1);
     ConfigEditor::list_tile_switch(ui, t!("config_editor.force_allow_dynamic_camera"), &mut config.force_allow_dynamic_camera, true);
@@ -33,6 +37,29 @@ pub fn render(editor: &ConfigEditor, config: &mut crate::core::hachimi::Config, 
             Gui::instance().unwrap().lock().unwrap_or_else(|e| e.into_inner())
                 .show_window(Box::new(LiveVocalsSwapWindow::new()));
         });
+    }
+
+    #[cfg(target_os = "windows")]
+    {
+        if ConfigEditor::list_tile_action_button(ui, t!("config_editor.free_camera"), t!("open")) {
+            thread::spawn(|| {
+                let Some(gui_mutex) = Gui::instance() else { return };
+                let mut gui = gui_mutex.lock().unwrap_or_else(|e| e.into_inner());
+                gui.show_window(Box::new(crate::core::gui::windows::FreeCameraWindow::new()));
+            });
+        }
+        if ConfigEditor::list_tile_action_button(ui, t!("free_camera.cheatsheet_title"), t!("open")) {
+            thread::spawn(|| {
+                let Some(gui_mutex) = Gui::instance() else { return };
+                let mut gui = gui_mutex.lock().unwrap_or_else(|e| e.into_inner());
+                gui.show_window(Box::new(crate::core::gui::dialogs::SimpleMarkdownDialog::new_with_height(
+                    &t!("free_camera.cheatsheet_title"),
+                    &t!("free_camera.cheatsheet_contents"),
+                    400.0,
+                    500.0,
+                )));
+            });
+        }
     }
 
     ConfigEditor::list_tile_switch(ui, t!("config_editor.skill_info_dialog"), &mut config.skill_info_dialog, true);
@@ -58,8 +85,61 @@ pub fn render(editor: &ConfigEditor, config: &mut crate::core::hachimi::Config, 
         });
     }
 
+    if config.hide_ingame_ui_hotkey && !ConfigEditor::row_filtered(&t!("config_editor.hide_ingame_ui_hotkey_bind")) {
+        ConfigEditor::maybe_draw_category_header(ui);
+        #[cfg(target_os = "windows")]
+        let key_label = crate::windows::utils::vk_to_display_label(config.windows.hide_ingame_ui_hotkey_bind);
+        #[cfg(target_os = "android")]
+        let key_label = crate::android::gui_impl::keymap::keycode_display_label(config.android.hide_ingame_ui_hotkey_bind);
+        let secondary_container    = egui_material3::theme::get_global_color("secondaryContainer");
+        let on_secondary_container = egui_material3::theme::get_global_color("onSecondaryContainer");
+        let key_galley = ui.painter().layout_no_wrap(
+            key_label.to_string(),
+            ui.style().text_styles[&egui::TextStyle::Body].clone(),
+            egui::Color32::WHITE,
+        );
+        let chip_w = key_galley.size().x + 16.0;
+
+        ui.add(egui::Label::new(t!("config_editor.hide_ingame_ui_hotkey_bind")).wrap());
+        ui.horizontal(|ui| {
+            ui.spacing_mut().item_spacing.x = 8.0;
+            let (chip_rect, _) = ui.allocate_exact_size(
+                egui::vec2(chip_w, 28.0),
+                egui::Sense::hover(),
+            );
+            ui.painter().rect_filled(chip_rect, 6.0, secondary_container);
+            ui.painter().text(
+                chip_rect.center(),
+                egui::Align2::CENTER_CENTER,
+                key_label,
+                ui.style().text_styles[&egui::TextStyle::Body].clone(),
+                on_secondary_container,
+            );
+            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                if ui.add(MaterialButton::outlined(t!("bind_key"))).clicked() {
+                    thread::spawn(|| {
+                        let Some(gui_mutex) = Gui::instance() else { return };
+                        let mut gui = gui_mutex.lock().unwrap_or_else(|e| e.into_inner());
+                        gui.show_window(Box::new(crate::core::gui::windows::SetKeybindWindow::new(|result| {
+                            let Some(raw) = result else { return };
+                            let hachimi = crate::core::Hachimi::instance();
+                            let mut new_config = hachimi.config.load().as_ref().clone();
+                            #[cfg(target_os = "windows")]
+                            { new_config.windows.hide_ingame_ui_hotkey_bind = raw; }
+                            #[cfg(target_os = "android")]
+                            { new_config.android.hide_ingame_ui_hotkey_bind = raw; }
+                            crate::core::gui::save_and_reload_config(new_config);
+                        })));
+                    });
+                }
+            });
+        });
+        ConfigEditor::space(ui, 4.0);
+    }
+
     ConfigEditor::list_tile_switch(ui, t!("config_editor.live_slider_always_show"), &mut config.live_slider_always_show, true);
     ConfigEditor::list_tile_switch(ui, t!("config_editor.live_playback_loop"), &mut config.live_playback_loop, true);
+    ConfigEditor::list_tile_switch(ui, t!("config_editor.trainer_live_landscape"), &mut config.trainer_live_landscape, true);
     ConfigEditor::list_tile_switch(ui, t!("config_editor.champions_live_show_text"), &mut config.champions_live_show_text, true);
 
     if config.champions_live_show_text {

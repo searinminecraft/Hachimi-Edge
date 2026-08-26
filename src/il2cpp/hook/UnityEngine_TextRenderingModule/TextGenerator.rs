@@ -130,6 +130,22 @@ extern "C" fn PopulateWithErrors(
         }
     }
 
+    let mut regex_replaced: Option<String> = None;
+    if new_str.is_none() && !localized_data.replace_rules.is_empty() {
+        let utf_str = unsafe { (*str_).as_utf16str() }.to_string();
+        for (re, replacement) in &localized_data.replace_rules {
+            if re.is_match(&utf_str) {
+                let replaced = re.replace_all(&utf_str, replacement.as_str()).into_owned();
+                regex_replaced = Some(replaced);
+                break;
+            }
+        }
+    }
+    if let Some(ref r) = regex_replaced {
+        new_str = Some(r);
+        has_template = r.contains('$');
+    }
+
     let config = hachimi.config.load();
 
     if text_settings.font_scale != 1.0 {

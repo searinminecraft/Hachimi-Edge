@@ -1,19 +1,22 @@
 use crate::{
     core::{Hachimi, game::Region, utils::{mul_int, str_visual_len}},
-    il2cpp::{ext::{Il2CppStringExt, StringExt}, hook::{UnityEngine_CoreModule::{Component, Object, UnityAction}, UnityEngine_UI::{EventSystem, Text}}, sql::{self, TextDataQuery}, symbols::{create_delegate, get_field_from_name, get_field_object_value, get_method_addr}, types::*}
+    il2cpp::{
+        api::il2cpp_class_from_il2cpp_type,
+        ext::{Il2CppStringExt, StringExt},
+        hook::{
+            UnityEngine_CoreModule::{Component, GameObject, RectTransform},
+            UnityEngine_UI::Text,
+            umamusume::TextCommon,
+        },
+        sql::{self, TextDataQuery},
+        symbols::{create_delegate, get_field_from_name, get_field_object_value, get_method_addr},
+        types::*,
+    },
 };
-use once_cell::sync::Lazy;
-use std::sync::Mutex;
-use fnv::FnvHashMap;
-use super::{ButtonCommon, DialogCommon, DialogManager, MasterDataUtil};
+use super::{DialogCommon, DialogManager, MasterDataUtil};
 
-static SKILL_TEXT_CACHE: Lazy<Mutex<FnvHashMap<i32, (String, String)>>> = Lazy::new(|| Mutex::default());
-
-/// Invalidate the skill text cache. Called when localized data is reloaded
-/// so the next skill interaction picks up fresh translations.
-pub fn clear_skill_text_cache() {
-    SKILL_TEXT_CACHE.lock().unwrap().clear();
-}
+/// Invalidate the skill text cache (no-op since text is resolved dynamically).
+pub fn clear_skill_text_cache() {}
 
 // SkillListItem
 static mut NAMETEXT_FIELD: *mut FieldInfo = 0 as _;
@@ -33,6 +36,17 @@ pub fn get__bgButton(this: *mut Il2CppObject) -> *mut Il2CppObject {
 static mut INFO_FIELD: *mut FieldInfo = 0 as _;
 pub fn get_info(this: *mut Il2CppObject) -> *mut Il2CppObject {
     get_field_object_value(this, unsafe { INFO_FIELD })
+}
+
+// Ported from kairusds: level text and skill point root for right-offset layout adjustment.
+static mut LEVELTEXT_FIELD: *mut FieldInfo = 0 as _;
+fn get_levelText(this: *mut Il2CppObject) -> *mut Il2CppObject {
+    get_field_object_value(this, unsafe { LEVELTEXT_FIELD })
+}
+
+static mut NEED_SKILL_POINT_ROOT_FIELD: *mut FieldInfo = 0 as _;
+fn get_needSkillPointRoot(this: *mut Il2CppObject) -> *mut Il2CppObject {
+    get_field_object_value(this, unsafe { NEED_SKILL_POINT_ROOT_FIELD })
 }
 
 static mut set_skill_name_text_addr: usize = 0;
@@ -73,6 +87,32 @@ fn UpdateItemCommon(this: *mut Il2CppObject, skill_info: *mut Il2CppObject, orig
             line_count: name_lines,
             font_size: Text::get_fontSize(name)
         });
+
+        // Ported from kairusds: adjust name box width so it doesn't overlap
+        // the level text or skill point root when those elements are visible.
+        let name_transform = Component::get_transform(name);
+        let mut right_offset: f32 = 0.0;
+
+        let skill_lvl = get_levelText(this);
+        if !skill_lvl.is_null() && TextCommon::get_IsActiveInHierarchy(skill_lvl) {
+            let lvl_transform = Component::get_transform(skill_lvl);
+            right_offset -= RectTransform::get_offsetMax(lvl_transform).x.abs()
+                + Text::get_preferredWidth(skill_lvl);
+        }
+
+        let skill_pts = get_needSkillPointRoot(this);
+        if !skill_pts.is_null() && GameObject::get_activeSelf(skill_pts) {
+            let pts_transform = GameObject::get_transform(skill_pts);
+            right_offset -= RectTransform::get_rect(pts_transform).width;
+        }
+
+        if right_offset < 0.0 && !name_transform.is_null() {
+            let mut offset_max = RectTransform::get_offsetMax(name_transform);
+            if offset_max.x > right_offset {
+                offset_max.x = right_offset;
+                RectTransform::set_offsetMax(name_transform, offset_max);
+            }
+        }
     }
 
     if get_IsDrawDesc(skill_info) && !desc.is_null() {
@@ -104,11 +144,42 @@ fn UpdateItemCommon(this: *mut Il2CppObject, skill_info: *mut Il2CppObject, orig
     }
 }
 
+static mut _ONCLICKBUTTON_FIELD: *mut FieldInfo = 0 as _;
+static mut ACTION_INT_CLASS: *mut Il2CppClass = 0 as _;
+
 type UpdateItemJpFn = extern "C" fn(this: *mut Il2CppObject, skill_info: *mut Il2CppObject, is_plate_effect_enable: bool, adjuster_data: *mut Il2CppObject, resource_hash: i32, on_click_button: *mut Il2CppObject);
 extern "C" fn UpdateItemJp(this: *mut Il2CppObject, skill_info: *mut Il2CppObject, is_plate_effect_enable: bool, adjuster_data: *mut Il2CppObject, resource_hash: i32, on_click_button: *mut Il2CppObject) {
+    let effective_on_click = if Hachimi::instance().config.load().skill_info_dialog && !skill_info.is_null() && unsafe { !ACTION_INT_CLASS.is_null() } {
+        let on_click_fn: fn() = unsafe { std::mem::transmute(on_click_skill_button as *const ()) };
+        create_delegate(unsafe { ACTION_INT_CLASS }, 1, on_click_fn).map(|d| d as *mut Il2CppObject).unwrap_or(on_click_button)
+    } else {
+        on_click_button
+    };
+
     UpdateItemCommon(this, skill_info, || {
-        get_orig_fn!(UpdateItemJp, UpdateItemJpFn)(this, skill_info, is_plate_effect_enable, adjuster_data, resource_hash, on_click_button);
+        get_orig_fn!(UpdateItemJp, UpdateItemJpFn)(this, skill_info, is_plate_effect_enable, adjuster_data, resource_hash, effective_on_click);
     });
+}
+
+// Action<int>
+extern "C" fn on_click_skill_button(_ptr: usize, skill_id: i32) {
+    let to_s = |opt_ptr: Option<*mut Il2CppString>| unsafe {
+        opt_ptr.and_then(|p| p.as_ref()).map(|s| s.as_utf16str().to_string())
+    };
+
+    let skill_name = to_s(TextDataQuery::get_skill_name(skill_id)).unwrap_or_else(|| to_s(Some(MasterDataUtil::GetSkillName(skill_id))).unwrap());
+    let skill_desc = to_s(TextDataQuery::get_skill_desc(skill_id)).unwrap_or_else(|| to_s(
+        Some(Hachimi::instance().skill_info.load().get_desc(skill_id).to_il2cpp_string())
+    ).unwrap());
+
+    let typ = if str_visual_len(skill_desc.as_str()) <= 250 {
+        DialogCommon::FormType::SMALL_ONE_BUTTON
+    } else if str_visual_len(skill_desc.as_str()) <= 490 {
+        DialogCommon::FormType::MIDDLE_ONE_BUTTON
+    } else {
+        DialogCommon::FormType::BIG_ONE_BUTTON
+    };
+    DialogManager::single_button_message(&skill_name, &skill_desc.replace("\\n", "\n"), typ);
 }
 
 type UpdateItemOtherFn = extern "C" fn(this: *mut Il2CppObject, skill_info: *mut Il2CppObject, is_plate_effect_enable: bool);
@@ -116,66 +187,6 @@ extern "C" fn UpdateItemOther(this: *mut Il2CppObject, skill_info: *mut Il2CppOb
     UpdateItemCommon(this, skill_info, || {
         get_orig_fn!(UpdateItemOther, UpdateItemOtherFn)(this, skill_info, is_plate_effect_enable);
     });
-}
-
-fn get_skill_text(skill_id: i32) -> (String, String) {
-    // Fast path: return cached text without any IL2CPP or SQL calls.
-    {
-        let cache = SKILL_TEXT_CACHE.lock().unwrap();
-        if let Some(cached) = cache.get(&skill_id) {
-            return cached.clone();
-        }
-    }
-
-    let to_s = |opt_ptr: Option<*mut Il2CppString>| unsafe {
-        opt_ptr.and_then(|p| p.as_ref()).map(|s| s.as_utf16str().to_string())
-    };
-
-    let current_name = to_s(TextDataQuery::get_skill_name(skill_id)).unwrap_or_else(|| to_s(Some(MasterDataUtil::GetSkillName(skill_id))).unwrap());
-    let current_desc = to_s(TextDataQuery::get_skill_desc(skill_id)).unwrap_or_else(|| to_s(
-        Some(Hachimi::instance().skill_info.load().get_desc(skill_id).to_il2cpp_string())
-    ).unwrap());
-
-    SKILL_TEXT_CACHE.lock().unwrap().insert(skill_id, (current_name.clone(), current_desc.clone()));
-    (current_name, current_desc)
-}
-
-type SetupOnClickSkillButtonFn = extern "C" fn(this: *mut Il2CppObject, info: *mut Il2CppObject);
-extern "C" fn SetupOnClickSkillButton(this: *mut Il2CppObject, info: *mut Il2CppObject) {
-    if !Hachimi::instance().config.load().skill_info_dialog {
-        get_orig_fn!(SetupOnClickSkillButton, SetupOnClickSkillButtonFn)(this, info);
-        return;
-    }
-    let skill_id = get_Id(info);
-    let button = get__bgButton(this);
-    let button_obj = Component::get_gameObject(button);
-    Object::set_name(button_obj, format!("HachimiSkill_{}", skill_id).to_il2cpp_string());
-    get_skill_text(skill_id);
-
-    let delegate = create_delegate(unsafe { UnityAction::UNITYACTION_CLASS }, 0, || {
-        let current_ev = EventSystem::get_current();
-        let clicked_obj = EventSystem::get_currentSelectedGameObject(current_ev);
-        let object_name = Object::get_name(clicked_obj);
-        let name_str = unsafe { (*object_name).as_utf16str() }.to_string();
-
-        if name_str.starts_with("HachimiSkill_") {
-            let id_str = &name_str["HachimiSkill_".len()..];
-            if let Ok(id) = id_str.parse::<i32>() {
-                if let Some(data) = SKILL_TEXT_CACHE.lock().unwrap().get(&id) {
-                    let (name, desc) = data;
-                    let typ = if str_visual_len(desc.as_str()) <= 250 {
-                        DialogCommon::FormType::SMALL_ONE_BUTTON
-                    } else if str_visual_len(desc.as_str()) <= 490 {
-                        DialogCommon::FormType::MIDDLE_ONE_BUTTON
-                    } else {
-                        DialogCommon::FormType::BIG_ONE_BUTTON
-                    };
-                    DialogManager::single_button_message(name, &desc.replace("\\n", "\n"), typ);
-                }
-            }
-        }
-    });
-    ButtonCommon::SetOnClick(button, delegate.unwrap());
 }
 
 pub fn init(umamusume: *const Il2CppImage) {
@@ -187,20 +198,26 @@ pub fn init(umamusume: *const Il2CppImage) {
         new_hook!(UpdateItem_addr, UpdateItemJp);
     }
     else {
-        let UpdateItem_addr = get_method_addr(PartsSingleModeSkillListItem, c"UpdateItem", 3);
+        let UpdateItem_addr = get_method_addr(PartsSingleModeSkillListItem, c"UpdateItem", 2);
         new_hook!(UpdateItem_addr, UpdateItemOther);
     }
 
-    let SetupOnClickSkillButton_addr = get_method_addr(PartsSingleModeSkillListItem, c"SetupOnClickSkillButton", 1);
-    new_hook!(SetupOnClickSkillButton_addr, SetupOnClickSkillButton);
-
     unsafe {
+        if Hachimi::instance().game.region != Region::Global {
+            _ONCLICKBUTTON_FIELD = get_field_from_name(PartsSingleModeSkillListItem, c"_onClickButton");
+            if !_ONCLICKBUTTON_FIELD.is_null() {
+                ACTION_INT_CLASS = il2cpp_class_from_il2cpp_type((*_ONCLICKBUTTON_FIELD).type_);
+            }
+        }
+
         // PartsSingleModeSkillListItem
         NAMETEXT_FIELD = get_field_from_name(PartsSingleModeSkillListItem, c"_nameText");
         DESCTEXT_FIELD = get_field_from_name(PartsSingleModeSkillListItem, c"_descText");
         _BGBUTTON_FIELD = get_field_from_name(PartsSingleModeSkillListItem, c"_bgButton");
         INFO_FIELD = get_field_from_name(PartsSingleModeSkillListItem, c"_info");
         set_skill_name_text_addr = get_method_addr(PartsSingleModeSkillListItem, c"SetSkillNameText", 0);
+        LEVELTEXT_FIELD = get_field_from_name(PartsSingleModeSkillListItem, c"_levelText");
+        NEED_SKILL_POINT_ROOT_FIELD = get_field_from_name(PartsSingleModeSkillListItem, c"_needSkillPointRoot");
 
         // PartsSingleModeSkillListItem.Info
         get_IsDrawDesc_addr = get_method_addr(Info, c"get_IsDrawDesc", 0);

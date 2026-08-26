@@ -36,11 +36,13 @@ impl StringExt for String {
 
 pub trait LocalizedDataExt {
     fn load_extra_asset_bundle(&self) -> *mut Il2CppObject;
+    fn load_extra_asset_bundles(&self) -> Vec<*mut Il2CppObject>;
     fn load_replacement_font(&self) -> *mut Il2CppObject;
     fn load_tmp_replacement_font(&self) -> *mut Il2CppObject;
 }
 
 static EXTRA_ASSET_BUNDLE_HANDLE: Lazy<Mutex<Option<GCHandle>>> = Lazy::new(|| Mutex::default());
+static EXTRA_ASSET_BUNDLES_HANDLES: Lazy<Mutex<Vec<GCHandle>>> = Lazy::new(|| Mutex::default());
 static REPLACEMENT_FONT_HANDLE: Lazy<Mutex<Option<GCHandle>>> = Lazy::new(|| Mutex::default());
 static TMP_REPLACEMENT_FONT_HANDLE: Lazy<Mutex<Option<GCHandle>>> = Lazy::new(|| Mutex::default());
 
@@ -68,6 +70,29 @@ impl LocalizedDataExt for LocalizedData {
 
         *handle_opt = Some(GCHandle::new(bundle, false));
         bundle
+    }
+
+    fn load_extra_asset_bundles(&self) -> Vec<*mut Il2CppObject> {
+        let mut handles_guard = EXTRA_ASSET_BUNDLES_HANDLES.lock().unwrap();
+        if !handles_guard.is_empty() {
+            return handles_guard.iter().map(|h| h.target()).collect();
+        }
+
+        let mut results = Vec::new();
+        if let Some(ref bundle_paths) = self.config.extra_asset_bundles {
+            for rel in bundle_paths {
+                if let Some(p) = self.get_data_path(rel) {
+                    if let Some(p_str) = p.to_str() {
+                        let bundle = AssetBundle::LoadFromFile_Internal_orig(p_str.to_il2cpp_string(), 0, 0);
+                        if !bundle.is_null() {
+                            handles_guard.push(GCHandle::new(bundle, false));
+                            results.push(bundle);
+                        }
+                    }
+                }
+            }
+        }
+        results
     }
 
     fn load_replacement_font(&self) -> *mut Il2CppObject {
