@@ -60,6 +60,60 @@ impl RepoInfo {
     }
 }
 
+// Repo registry (ported from kairusds/Hachimi-Edge, minus the info.json fluff).
+// Persisted as <data>/.tl_repos — maps a numeric id to the repo index URL.
+#[derive(Default, Clone, Serialize, Deserialize)]
+pub struct RepoList {
+    pub repos: Vec<RepoEntry>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct RepoEntry {
+    pub id: u32,
+    pub index: String,
+}
+
+impl RepoList {
+    pub fn load(path: &Path) -> Result<Self, Error> {
+        if path.exists() {
+            let data = fs::read_to_string(path)?;
+            Ok(serde_json::from_str(&data)?)
+        } else {
+            Ok(Self::default())
+        }
+    }
+
+    pub fn save(&self, path: &Path) -> Result<(), Error> {
+        utils::write_json_file(self, path)
+    }
+
+    pub fn next_id(&self) -> u32 {
+        self.repos
+            .iter()
+            .map(|r| r.id)
+            .max()
+            .map(|m| m + 1)
+            .unwrap_or(1)
+    }
+
+    pub fn add(&mut self, index: String) -> u32 {
+        let id = self.next_id();
+        self.repos.push(RepoEntry { id, index });
+        id
+    }
+
+    pub fn find_by_index(&self, index: &str) -> Option<u32> {
+        self.repos.iter().find(|r| r.index == index).map(|r| r.id)
+    }
+
+    pub fn find_by_id(&self, id: u32) -> Option<&str> {
+        self.repos
+            .iter()
+            .find(|r| r.id == id)
+            .map(|r| r.index.as_str())
+    }
+}
+
 pub fn new_meta_index_request() -> AsyncRequest<Vec<RepoInfo>> {
     let meta_index_url = &Hachimi::instance().config.load().meta_index_url;
 
@@ -149,6 +203,20 @@ impl UpdateProgress {
 const REPO_CACHE_FILENAME: &str = ".tl_repo_cache";
 const REPO_CACHE_MOD_FILENAME: &str = ".tl_repo_cache_mod";
 const REPO_EXCLUDES_FILENAME: &str = ".tl_repo_excludes";
+
+/// True when `path` matches an exclude entry. Matches exact paths and whole
+/// directories: an entry `story` also excludes `story/...` (anything below it),
+/// while an entry with a trailing slash (`story/`) only matches the folder
+/// itself. Mirrors upstream kairusds directory-matching semantics.
+fn is_excluded(excludes: &HashSet<String>, path: &str) -> bool {
+    excludes.iter().any(|exc| {
+        if path == *exc {
+            return true;
+        }
+        let exc_dir = exc.trim_end_matches('/');
+        !exc_dir.is_empty() && path.starts_with(&format!("{}/", exc_dir))
+    })
+}
 #[derive(Serialize, Deserialize, Default)]
 struct RepoCache {
     base_url: String,
@@ -187,8 +255,12 @@ pub struct Updater {
 
 const LOCALIZED_DATA_DIR: &str = "localized_data";
 const CHUNK_SIZE: usize = 8192; // 8KiB
+
+fn get_repo_cache_path(id: u32) -> PathBuf {
+    Hachimi::instance().get_data_path(format!(".tl_repo_cache_{id}"))
+}
 static NUM_THREADS: Lazy<usize> = Lazy::new(|| {
-    let parallelism = thread::available_parallelism().unwrap().get();
+    let parallelism = thread::available_parallelism().map(|n| n.get()).unwrap_or(4);
     max(1, parallelism / 2)
 });
 
@@ -456,10 +528,34 @@ impl Updater {
         let Some(index_url) = &config.translation_repo_index else {
             return Ok(());
         };
-        let ld_dir_path = config
-            .localized_data_dir
-            .as_ref()
-            .map(|p| hachimi.get_data_path(p));
+
+        // Ensure the repo is registered so the active dir + per-repo cache are keyed by id.
+        if config.selected_tl_repo_id.is_none() {
+            let id = {
+                let mut manager = hachimi.tl_repo_manager.lock().unwrap();
+                let repos_path = hachimi.get_data_path(".tl_repos");
+                match manager.find_by_index(index_url) {
+                    Some(existing) => existing,
+                    None => {
+                        let new_id = manager.add(index_url.clone());
+                        if let Err(e) = manager.save(&repos_path) {
+                            warn!("Failed to save .tl_repos: {e}");
+                        }
+                        new_id
+                    }
+                }
+            };
+            let mut new_config = (**config).clone();
+            new_config.selected_tl_repo_id = Some(id);
+            hachimi.save_and_reload_config(new_config)?;
+        }
+        let config = hachimi.config.load(); // in case repo id was migrated
+        let ld_dir_path = hachimi.get_active_tl_dir().or_else(|| {
+            config
+                .localized_data_dir
+                .as_ref()
+                .map(|p| hachimi.get_data_path(p))
+        });
 
         if !silent {
             if let Some(mutex) = Gui::instance() {
@@ -471,7 +567,10 @@ impl Updater {
             }
         }
 
-        let cache_path = hachimi.get_data_path(REPO_CACHE_FILENAME);
+        let cache_path = config
+            .selected_tl_repo_id
+            .map(get_repo_cache_path)
+            .unwrap_or_else(|| hachimi.get_data_path(REPO_CACHE_FILENAME));
         let repo_cache = if fs::metadata(&cache_path).is_ok() {
             let json = fs::read_to_string(&cache_path)?;
             serde_json::from_str(&json).unwrap_or_default()
@@ -508,9 +607,14 @@ impl Updater {
 
         // Conditional GET: send If-None-Match with the best known ETag so the server
         // can reply 304 Not Modified when nothing has changed, avoiding a full index
-        // download on every periodic check.
-        let etag_for_request: Option<String> = repo_cache.index_etag.clone()
-            .or_else(|| self.skipped_etag.lock().unwrap_or_else(|e| e.into_inner()).clone());
+        // download on every periodic check. Pedantic runs bypass the ETag entirely —
+        // the user explicitly asked for a full fetch + integrity re-scan.
+        let etag_for_request: Option<String> = if !pedantic_main {
+            repo_cache.index_etag.clone()
+                .or_else(|| self.skipped_etag.lock().unwrap_or_else(|e| e.into_inner()).clone())
+        } else {
+            None
+        };
 
         let mut request = ureq::agent().get(index_url);
         if let Some(ref etag) = etag_for_request {
@@ -618,7 +722,7 @@ impl Updater {
                     true
                 }
             } else if let Some(hash) = repo_cache.files.get(&file.path) {
-                if !pedantic_main && exists && excludes.contains(&file.path) {
+                if !pedantic_main && exists && is_excluded(&excludes, &file.path) {
                     false
                 } else if let Some(path) = path {
                     // file doesn't exist -> download
@@ -733,6 +837,7 @@ impl Updater {
                 };
 
                 let updater = Hachimi::instance().tl_updater.clone();
+                let etag_to_skip = new_etag.clone();
 
                 mutex
                     .lock()
@@ -742,6 +847,9 @@ impl Updater {
                         &dialog_message,
                         move |ok| {
                             if !ok {
+                                // Remember this exact version so it doesn't re-prompt
+                                // until a newer one ships or the user checks manually.
+                                updater.skip_update(etag_to_skip);
                                 updater.clear_pending_update();
                                 return;
                             }
@@ -763,7 +871,9 @@ impl Updater {
             let mut mod_updates_found = false;
             if !config.disable_mod_downloads && !pedantic_main {
                 if let Some(mod_index_url) = &config.translation_repo_index_mod {
-                    let ld_dir_path = config.localized_data_dir.as_ref().map(|p| hachimi.get_data_path(p));
+                    let ld_dir_path = hachimi.get_active_tl_dir().or_else(|| {
+                        config.localized_data_dir.as_ref().map(|p| hachimi.get_data_path(p))
+                    });
                     match self.check_for_mod_updates(mod_index_url, pedantic_mod, silent, &config, &ld_dir_path) {
                         Ok(found) => mod_updates_found = found,
                         Err(e) => warn!("Failed to check for mod updates: {}", e),
@@ -845,11 +955,9 @@ impl Updater {
             .store(Arc::new(LocalizedData::default()));
 
         let config = hachimi.config.load();
-        let localized_data_dir = config
-            .localized_data_dir
-            .as_ref()
-            .map(|p| hachimi.get_data_path(p))
-            .unwrap_or_else(|| hachimi.get_data_path(LOCALIZED_DATA_DIR));
+        let localized_data_dir = hachimi
+            .get_active_tl_dir()
+            .expect("Active TL repo directory not set.");
 
         if update_info.is_new_repo {
             Self::create_dir(&localized_data_dir, true)?;
@@ -876,12 +984,6 @@ impl Updater {
             )));
         }
 
-        // Modify the config if needed
-        if config.localized_data_dir.is_none() {
-            let mut new_config = (**config).clone();
-            new_config.localized_data_dir = Some(LOCALIZED_DATA_DIR.to_owned());
-            hachimi.save_and_reload_config(new_config)?;
-        }
         if config.apply_atlas_workaround && (update_info.modifies_atlas || update_info.will_use_zip)
         {
             let mut new_config = (**config).clone();
@@ -908,7 +1010,12 @@ impl Updater {
             index_etag: update_info.index_etag.clone(),
             files: cached_files.lock().unwrap_or_else(|e| e.into_inner()).clone(),
         };
-        let cache_path = hachimi.get_data_path(REPO_CACHE_FILENAME);
+        let cache_path = hachimi
+            .config
+            .load()
+            .selected_tl_repo_id
+            .map(get_repo_cache_path)
+            .unwrap_or_else(|| hachimi.get_data_path(REPO_CACHE_FILENAME));
         utils::write_json_file(&repo_cache, &cache_path)?;
 
         if let Some(mutex) = Gui::instance() {
@@ -928,7 +1035,9 @@ impl Updater {
         let config = hachimi.config.load();
         if !update_info.pedantic && !config.disable_mod_downloads {
             if let Some(mod_index_url) = &config.translation_repo_index_mod {
-                let ld_dir_path = config.localized_data_dir.as_ref().map(|p| hachimi.get_data_path(p));
+                let ld_dir_path = hachimi.get_active_tl_dir().or_else(|| {
+                    config.localized_data_dir.as_ref().map(|p| hachimi.get_data_path(p))
+                });
                 if let Err(e) = self.check_for_mod_updates(mod_index_url, false, true, &config, &ld_dir_path) {
                     warn!("Failed to check for addon updates after TL download: {}", e);
                 }
@@ -1239,11 +1348,13 @@ impl Updater {
         hachimi.localized_data.store(Arc::new(LocalizedData::default()));
 
         let config = hachimi.config.load();
-        let localized_data_dir = config
-            .localized_data_dir
-            .as_ref()
-            .map(|p| hachimi.get_data_path(p))
-            .unwrap_or_else(|| hachimi.get_data_path(LOCALIZED_DATA_DIR));
+        let localized_data_dir = hachimi.get_active_tl_dir().unwrap_or_else(|| {
+            config
+                .localized_data_dir
+                .as_ref()
+                .map(|p| hachimi.get_data_path(p))
+                .unwrap_or_else(|| hachimi.get_data_path(LOCALIZED_DATA_DIR))
+        });
         Self::create_dir(&localized_data_dir, false)?;
 
         let cached_files = Arc::new(Mutex::new(update_info.cached_files.clone()));

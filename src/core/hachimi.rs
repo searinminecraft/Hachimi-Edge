@@ -18,7 +18,7 @@ use crate::{
     gui_impl, hachimi_impl,
     il2cpp::{
         self,
-        hook::umamusume::{CySpringController::SpringUpdateMode, GameSystem},
+        hook::umamusume::CySpringController::SpringUpdateMode,
         sql::{CharacterData, SkillInfo},
     },
 };
@@ -84,6 +84,9 @@ pub struct Hachimi {
     // Localized data
     pub localized_data: ArcSwap<LocalizedData>,
     pub tl_updater: Arc<tl_repo::Updater>,
+
+    // Translation repo registry
+    pub tl_repo_manager: Mutex<tl_repo::RepoList>,
 
     // Character data
     pub chara_data: ArcSwap<CharacterData>,
@@ -180,6 +183,7 @@ impl Hachimi {
             // Don't load localized data initially since it might fail, logging the error is not possible here
             localized_data: ArcSwap::default(),
             tl_updater: Arc::default(),
+            tl_repo_manager: Mutex::new(tl_repo::RepoList::default()),
 
             // Same with these
             chara_data: ArcSwap::default(),
@@ -403,6 +407,7 @@ impl Hachimi {
     }
 
     pub fn save_and_reload_config(&self, config: Config) -> Result<(), Error> {
+        let old_tl_repo_id = self.config.load().selected_tl_repo_id;
         self.save_config(&config)?;
 
         config.language.set_locale();
@@ -434,7 +439,156 @@ impl Hachimi {
         crate::android::hachimi_impl::set_keep_screen_on(config.android.keep_screen_on);
 
         self.config.store(Arc::new(config));
+
+        // Switching the active TL repo needs a fresh localized data load so the
+        // runtime picks up the new repo's files.
+        if self.config.load().selected_tl_repo_id != old_tl_repo_id {
+            self.load_localized_data();
+            crate::core::gui::request_notification(crate::core::gui::NotificationRequest::TLRepoChanged);
+        }
+
         crate::core::captions::Captions::reposition_scheduled();
+        Ok(())
+    }
+
+    /// Resolves the data dir for a registered repo. id 1 keeps the legacy
+    /// `localized_data` dir when it exists so migrated installs keep their files.
+    pub fn get_repo_dir(&self, id: u32) -> PathBuf {
+        if id == 1 {
+            let legacy = self.game.data_dir.join("localized_data");
+            if legacy.is_dir() {
+                return legacy;
+            }
+        }
+        self.game.data_dir.join(format!("localized_data_{id}"))
+    }
+
+    /// The dir of the currently-selected repo, if one is registered.
+    pub fn get_active_tl_dir(&self) -> Option<PathBuf> {
+        let id = self.config.load().selected_tl_repo_id?;
+        Some(self.get_repo_dir(id))
+    }
+
+    /// Ensures the repo registry (.tl_repos) is loaded and `selected_tl_repo_id`
+    /// is consistent with `translation_repo_index`. Migrates legacy installs
+    /// (a pre-existing `localized_data` folder becomes repo id 1).
+    pub fn ensure_tl_repo_registry(&self) -> Result<(), Error> {
+        let repos_path = self.get_data_path(".tl_repos");
+        let old_data_dir = self.game.data_dir.join("localized_data");
+
+        // Everything is decided under the manager lock, but save_and_reload_config
+        // must never be called while holding it: it re-enters load_localized_data
+        // -> ensure_tl_repo_registry, and std::sync::Mutex is not reentrant.
+        let mut resolve_to: Option<u32> = None;
+        let mut manager_dirty = false;
+        {
+            let mut manager = self.tl_repo_manager.lock().unwrap();
+
+            if !repos_path.exists() && old_data_dir.is_dir() {
+                info!("Found legacy 'localized_data' folder and no .tl_repos; migrating...");
+                let config = self.config.load();
+                if let Some(index) = &config.translation_repo_index {
+                    let id = manager.add(index.clone());
+                    manager.save(&repos_path)?;
+                    resolve_to = Some(id);
+                } else {
+                    manager.save(&repos_path)?;
+                }
+            }
+
+            *manager = if repos_path.exists() {
+                tl_repo::RepoList::load(&repos_path).unwrap_or_else(|e| {
+                    warn!("Failed to load .tl_repos ({e}); starting fresh");
+                    tl_repo::RepoList::default()
+                })
+            } else {
+                tl_repo::RepoList::default()
+            };
+
+            let config = self.config.load();
+            let index = config.translation_repo_index.clone();
+            let current_id = config.selected_tl_repo_id;
+
+            match current_id {
+                Some(id) => {
+                    if manager.find_by_id(id) != index.as_deref() {
+                        warn!("TL repo ID {id} does not match index {index:?}; re-resolving");
+
+                        let mut cleared = (**config).clone();
+                        cleared.selected_tl_repo_id = None;
+                        self.save_config(&cleared)?;
+                        self.config.store(Arc::new(cleared));
+
+                        match index {
+                            Some(idx) => {
+                                resolve_to = Some(match manager.find_by_index(&idx) {
+                                    Some(existing) => existing,
+                                    None => {
+                                        let nid = manager.add(idx);
+                                        manager_dirty = true;
+                                        nid
+                                    }
+                                });
+                            }
+                            None => {
+                                // Registered repo with no index URL anymore; if its
+                                // data folder is gone, drop the stale data until
+                                // the next update restores it.
+                                let data_dir = self.get_repo_dir(id);
+                                if !data_dir.is_dir() {
+                                    warn!(
+                                        "TL repo data folder '{}' is missing, clearing localized data until next update...",
+                                        data_dir.display()
+                                    );
+                                    self.localized_data
+                                        .store(Arc::new(LocalizedData::default()));
+                                    crate::core::gui::request_notification(
+                                        crate::core::gui::NotificationRequest::TLFolderMissing,
+                                    );
+                                }
+                            }
+                        }
+                    }
+                }
+                None => {
+                    if let Some(idx) = index {
+                        resolve_to = Some(match manager.find_by_index(&idx) {
+                            Some(existing) => existing,
+                            None => {
+                                let nid = manager.add(idx);
+                                manager_dirty = true;
+                                nid
+                            }
+                        });
+                    }
+                }
+            }
+
+            if manager_dirty {
+                manager.save(&repos_path)?;
+            }
+        }
+
+        if let Some(id) = resolve_to {
+            let config = self.config.load();
+            let mut new_config = (**config).clone();
+            new_config.selected_tl_repo_id = Some(id);
+            self.save_and_reload_config(new_config)?;
+        }
+
+        // Legacy single-repo cache: fold it into the per-repo cache file so
+        // upgraded installs don't re-download everything once.
+        if let Some(id) = self.config.load().selected_tl_repo_id {
+            let old_cache = self.get_data_path(".tl_repo_cache");
+            if old_cache.exists() {
+                let new_cache = self.get_data_path(format!(".tl_repo_cache_{id}"));
+                info!("Migrating legacy tl repo cache file to {}", new_cache.display());
+                if let Err(e) = fs::rename(&old_cache, &new_cache) {
+                    warn!("Failed to rename legacy tl repo cache file: {e}");
+                }
+            }
+        }
+
         Ok(())
     }
 
@@ -443,7 +597,20 @@ impl Hachimi {
             warn!("Update in progress, not loading localized data");
             return;
         }
-        let new_data = match LocalizedData::new(&self.config.load(), &self.game.data_dir) {
+
+        if let Err(e) = self.ensure_tl_repo_registry() {
+            error!("Failed to ensure translation repo registry: {}", e);
+            return;
+        }
+
+        let config = self.config.load();
+        let ld_path = self.get_active_tl_dir().or_else(|| {
+            config
+                .localized_data_dir
+                .as_ref()
+                .map(|p| self.game.data_dir.join(p))
+        });
+        let new_data = match LocalizedData::new(&config, ld_path) {
             Ok(v) => v,
             Err(e) => {
                 error!("Failed to load localized data: {}", e);
@@ -456,17 +623,27 @@ impl Hachimi {
 
     pub fn init_character_data(&self) {
         if self.chara_data.load().chara_ids.is_empty() {
-            let data = CharacterData::load_from_db();
-            self.chara_data.store(Arc::new(data));
-            info!("Character database loaded successfully.");
+            std::thread::Builder::new()
+                .name("chara_data_loader".into())
+                .spawn(|| {
+                    let data = CharacterData::load_from_db();
+                    Hachimi::instance().chara_data.store(Arc::new(data));
+                    info!("Character database loaded successfully.");
+                })
+                .ok();
         }
     }
 
     pub fn init_skill_info(&self) {
         if self.skill_info.load().skill_names.is_empty() {
-            let data = SkillInfo::load_from_db();
-            self.skill_info.store(Arc::new(data));
-            info!("Skill info loaded successfully.");
+            std::thread::Builder::new()
+                .name("skill_info_loader".into())
+                .spawn(|| {
+                    let data = SkillInfo::load_from_db();
+                    Hachimi::instance().skill_info.store(Arc::new(data));
+                    info!("Skill info loaded successfully.");
+                })
+                .ok();
         }
     }
 
@@ -494,6 +671,10 @@ impl Hachimi {
         if hachimi_impl::is_il2cpp_lib(filename) {
             info!("Got il2cpp handle");
             il2cpp::symbols::set_handle(handle);
+            if self.game.region != crate::core::game::Region::Japan {
+                self.on_hooking_finished();
+                return true;
+            }
             false
         } else {
             false
@@ -510,9 +691,6 @@ impl Hachimi {
         info!("GameAssembly finished loading");
         il2cpp::symbols::init();
         il2cpp::hook::init();
-
-        // By the time it finished hooking the game will have already finished initializing
-        GameSystem::on_game_initialized();
 
         let config = self.config.load();
         if !config.disable_gui {
@@ -566,15 +744,25 @@ impl Hachimi {
 
     pub fn run_auto_update_check(&self) {
         if !self.config.load().disable_auto_update_check {
-            // Check for hachimi updates first, then translations
-            // Don't auto check for tl updates if it's not up to date
-            self.updater.clone().check_for_updates(|new_update| {
-                let hachimi = Hachimi::instance();
-                let config = hachimi.config.load();
-                if !new_update && !config.translator_mode {
-                    hachimi.tl_updater.clone().check_for_updates(false, false);
-                }
-            });
+            std::thread::Builder::new()
+                .name("deferred_update_check".into())
+                .spawn(|| {
+                    std::thread::sleep(std::time::Duration::from_secs(3));
+                    let hachimi = Hachimi::instance();
+                    if hachimi.config.load().disable_auto_update_check {
+                        return;
+                    }
+                    // Check for hachimi updates first, then translations
+                    // Don't auto check for tl updates if it's not up to date
+                    hachimi.updater.clone().check_for_updates(|new_update| {
+                        let hachimi = Hachimi::instance();
+                        let config = hachimi.config.load();
+                        if !new_update && !config.translator_mode {
+                            hachimi.tl_updater.clone().check_for_updates(false, false);
+                        }
+                    });
+                })
+                .ok();
         }
     }
 
@@ -791,6 +979,8 @@ pub struct Config {
     pub localized_data_dir: Option<String>,
     pub translation_repo_index: Option<String>,
     #[serde(default)]
+    pub selected_tl_repo_id: Option<u32>,
+    #[serde(default)]
     pub translation_repo_index_mod: Option<String>,
     #[serde(default)]
     pub disable_mod_downloads: bool,
@@ -844,6 +1034,10 @@ pub struct Config {
     pub cyspring_mono_uncap_frame_scale: bool,
     #[serde(default)]
     pub cyspring_disable_native: bool,
+    #[serde(default = "Config::default_one_f32")]
+    pub cyspring_stiffness_force_rate_scale: f32,
+    #[serde(default = "Config::default_one_f32")]
+    pub cyspring_drag_force_rate_scale: f32,
     #[serde(default = "Config::default_story_choice_auto_select_delay")]
     pub story_choice_auto_select_delay: f32,
     #[serde(default = "Config::default_story_tcps_multiplier")]
@@ -866,6 +1060,8 @@ pub struct Config {
     pub live_slider_always_show: bool,
     #[serde(default)]
     pub live_playback_loop: bool,
+    #[serde(default)]
+    pub trainer_live_landscape: bool,
     #[serde(default)]
     pub champions_live_show_text: bool,
     #[serde(default = "Config::default_champions_live_resource_id")]
@@ -965,6 +1161,9 @@ pub struct Config {
 }
 
 impl Config {
+    pub fn default_one_f32() -> f32 {
+        1.0
+    }
     fn default_open_browser_url() -> String {
         "https://rekodesuwa.com".to_owned()
     }
@@ -1277,6 +1476,7 @@ pub struct LocalizedData {
     pub character_system_text_dict: FnvHashMap<i32, FnvHashMap<i32, String>>, // {"character_id": {"voice_id": "text"}}
     pub race_jikkyo_comment_dict: FnvHashMap<i32, String>,                    // {"id": "text"}
     pub race_jikkyo_message_dict: FnvHashMap<i32, String>,                    // {"id": "text"}
+    pub replace_rules: Vec<(regex::Regex, String)>,
     assets_path: Option<PathBuf>,
 
     pub plural_form: plurals::Resolver,
@@ -1300,27 +1500,23 @@ pub struct CustomRubyDef {
 
 
 impl LocalizedData {
-    fn new(config: &Config, data_dir: &Path) -> Result<LocalizedData, Error> {
+    fn new(config: &Config, ld_path: Option<PathBuf>) -> Result<LocalizedData, Error> {
         if config.disable_translations {
             return Ok(LocalizedData::default());
         }
 
-        let path: Option<PathBuf>;
-        let config: LocalizedDataConfig = if let Some(ld_dir) = &config.localized_data_dir {
-            let ld_path = Path::new(data_dir).join(ld_dir);
-
+        let path = ld_path;
+        let config: LocalizedDataConfig = if let Some(ref p) = path {
             // Create .nomedia
             #[cfg(target_os = "android")]
             {
                 _ = fs::OpenOptions::new()
                     .create_new(true)
                     .write(true)
-                    .open(ld_path.join(".nomedia"));
+                    .open(p.join(".nomedia"));
             }
 
-            let ld_config_path = ld_path.join("config.json");
-            path = Some(ld_path);
-
+            let ld_config_path = p.join("config.json");
             if fs::metadata(&ld_config_path).is_ok() {
                 let json = fs::read_to_string(&ld_config_path)?;
                 serde_json::from_str(&json)?
@@ -1329,7 +1525,6 @@ impl LocalizedData {
                 LocalizedDataConfig::default()
             }
         } else {
-            path = None;
             LocalizedDataConfig::default()
         };
 
@@ -1360,6 +1555,41 @@ impl LocalizedData {
                 config.race_jikkyo_message_dict.as_ref(),
             )
             .unwrap_or_default(),
+            replace_rules: {
+                let mut rules = Vec::new();
+                let rules_raw: Option<serde_json::Value> = Self::load_dict_static(
+                    &path,
+                    config.replace_rules.as_ref().or(Some(&"replace_rules.json".to_string())),
+                );
+                if let Some(val) = rules_raw {
+                    if let Some(map) = val.as_object() {
+                        for (pat, repl) in map {
+                            if let Some(repl_str) = repl.as_str() {
+                                match regex::Regex::new(pat) {
+                                    Ok(re) => rules.push((re, repl_str.to_string())),
+                                    Err(e) => warn!("Invalid regex rule '{}': {}", pat, e),
+                                }
+                            }
+                        }
+                    } else if let Some(arr) = val.as_array() {
+                        for item in arr {
+                            if let (Some(pat), Some(repl)) = (
+                                item.get("pattern").and_then(|v| v.as_str()),
+                                item.get("replace").and_then(|v| v.as_str()),
+                            ) {
+                                match regex::Regex::new(pat) {
+                                    Ok(re) => rules.push((re, repl.to_string())),
+                                    Err(e) => warn!("Invalid regex rule '{}': {}", pat, e),
+                                }
+                            }
+                        }
+                    }
+                }
+                if !rules.is_empty() {
+                    info!("Loaded {} dynamic regex replacement rules.", rules.len());
+                }
+                rules
+            },
             assets_path: path
                 .as_ref()
                 .map(|p| config.assets_dir.as_ref().map(|dir| p.join(dir)))
@@ -1518,10 +1748,13 @@ pub struct LocalizedDataConfig {
     pub character_system_text_dict: Option<String>,
     pub race_jikkyo_comment_dict: Option<String>,
     pub race_jikkyo_message_dict: Option<String>,
+    pub replace_rules: Option<String>,
     pub assets_dir: Option<String>,
     pub text_config: Option<String>,
     #[serde(default)]
     pub extra_asset_bundle: OsOption<String>,
+    #[serde(default)]
+    pub extra_asset_bundles: Option<Vec<String>>,
     pub replacement_font_name: Option<String>,
 
     pub plural_form: Option<String>,
@@ -1553,6 +1786,8 @@ pub struct LocalizedDataConfig {
     pub skill_formatting: SkillFormatting,
     #[serde(default)]
     pub text_common_allow_overflow: bool,
+    #[serde(default)]
+    pub text_common_best_fit: bool,
     #[serde(default)]
     pub now_loading_comic_title_ellipsis: bool,
 
