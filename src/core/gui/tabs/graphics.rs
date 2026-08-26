@@ -57,5 +57,78 @@ pub fn render(editor: &ConfigEditor, config: &mut crate::core::hachimi::Config, 
             (ResolutionScaling::ScaleToWindowSize, &t!("config_editor.resolution_scaling_wsize")),
         ]);
         ConfigEditor::list_tile_switch(ui, t!("config_editor.window_always_on_top"), &mut config.windows.window_always_on_top, true);
+
+        ConfigEditor::list_tile_switch(ui, t!("config_editor.freeform_window"), &mut config.windows.freeform_window, true);
+        ConfigEditor::list_tile_switch(ui, t!("config_editor.freeform_ui_scale_auto"), &mut config.windows.freeform_ui_scale_auto, true);
+        if config.windows.freeform_ui_scale_auto {
+            ConfigEditor::list_tile_slider(ui, t!("config_editor.freeform_ui_scale_auto_ratio"),
+                &mut config.windows.freeform_ui_scale_auto_ratio, 0.25..=3.0, 0.05, 2);
+        }
+
+        ConfigEditor::list_tile_switch(ui, t!("config_editor.ui_loading_show_orientation_guide"),
+            &mut config.windows.ui_loading_show_orientation_guide, true);
+
+        if !ConfigEditor::row_filtered(&t!("config_editor.full_screen_res")) {
+            let is_landscape = ui.ctx().input(|i| i.viewport_rect().width() > i.viewport_rect().height());
+            let label_text = if is_landscape {
+                format!("{} ({})", t!("config_editor.full_screen_res"), t!("config_editor.landscape"))
+            } else {
+                format!("{} ({})", t!("config_editor.full_screen_res"), t!("config_editor.portrait"))
+            };
+            ui.add(egui::Label::new(label_text).wrap());
+
+            ui.horizontal(|ui| {
+                ui.spacing_mut().item_spacing.x = 6.0;
+
+                let scale = crate::core::gui::utils::get_scale(ui.ctx());
+                let number_w = 48.0 * scale;
+
+                if is_landscape {
+                    let (rect, _) = ui.allocate_exact_size(egui::vec2(number_w, 32.0), egui::Sense::hover());
+                    let _ = ui.put(
+                        rect,
+                        MaterialNumberField::filled(&mut config.windows.full_screen_res.width)
+                            .range(0..=7680)
+                            .decimals(0),
+                    );
+                    ui.label("W px");
+                    let (rect2, _) = ui.allocate_exact_size(egui::vec2(number_w, 32.0), egui::Sense::hover());
+                    let _ = ui.put(
+                        rect2,
+                        MaterialNumberField::filled(&mut config.windows.full_screen_res.height)
+                            .range(0..=4320)
+                            .decimals(0),
+                    );
+                    ui.label("H px");
+                } else {
+                    let (rect, _) = ui.allocate_exact_size(egui::vec2(number_w, 32.0), egui::Sense::hover());
+                    let _ = ui.put(
+                        rect,
+                        MaterialNumberField::filled(&mut config.windows.full_screen_res.height)
+                            .range(0..=4320)
+                            .decimals(0),
+                    );
+                    ui.label("H px");
+                    let (rect2, _) = ui.allocate_exact_size(egui::vec2(number_w, 32.0), egui::Sense::hover());
+                    let _ = ui.put(
+                        rect2,
+                        MaterialNumberField::filled(&mut config.windows.full_screen_res.width)
+                            .range(0..=7680)
+                            .decimals(0),
+                    );
+                    ui.label("W px");
+                }
+            });
+            ConfigEditor::space(ui, 4.0);
+        }
+    }
+
+    #[cfg(target_os = "android")]
+    {
+        ConfigEditor::list_tile_combo(ui, t!("config_editor.force_orientation_mode"), "force_orientation_mode", &mut config.android.force_orientation_mode, &[
+            (crate::il2cpp::types::ScreenOrientation_Unknown, t!("disabled").as_ref()),
+            (crate::il2cpp::types::ScreenOrientation_LandscapeLeft, t!("config_editor.landscape").as_ref()),
+            (crate::il2cpp::types::ScreenOrientation_Portrait, t!("config_editor.portrait").as_ref()),
+        ]);
     }
 }

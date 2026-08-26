@@ -5,7 +5,29 @@ use egui_material3::theme::get_global_color;
 use rust_i18n::t;
 
 use crate::core::*;
-use std::{sync::Arc, ops::RangeInclusive};
+use std::{sync::Arc, ops::RangeInclusive, cell::RefCell};
+
+// Active search filter for the config editor, set per-frame by `run_options`.
+// Lives in a thread-local because the `list_tile_*` helpers are static methods
+// (same pattern kairusds uses with `should_show_option`).
+thread_local! {
+    static ACTIVE_SEARCH: RefCell<Option<String>> = const { RefCell::new(None) };
+    static PENDING_CATEGORY_HEADER: RefCell<Option<String>> = const { RefCell::new(None) };
+}
+
+/// Returns true when `label` matches the search term (case-insensitive substring).
+/// An empty/whitespace search matches everything.
+pub fn should_show_option(search: &str, label: &str) -> bool {
+    let search = search.trim();
+    search.is_empty() || label.to_lowercase().contains(&search.to_lowercase())
+}
+
+/// Zero-size widget response used when a row is hidden by the search filter.
+/// Uses `ui.interact` with a zero Rect to return a valid `egui::Response`
+/// WITHOUT allocating layout space or advancing the vertical cursor.
+fn hidden_response(ui: &mut egui::Ui) -> egui::Response {
+    ui.interact(egui::Rect::ZERO, ui.id().with("hidden_row"), egui::Sense::hover())
+}
 
 
 #[derive(Eq, PartialEq, Clone, Copy)]
@@ -50,6 +72,7 @@ pub struct ConfigEditor {
     pub config:             hachimi::Config,
     pub id:                 egui::Id,
     pub current_tab:        ConfigEditorTab,
+    pub search_term:        String,
     pub champions_resources: Vec<String>,
     pub champions_live_max_year: i32,
     pub font_color_options:  Vec<String>,
@@ -59,6 +82,51 @@ pub struct ConfigEditor {
 }
 
 impl ConfigEditor {
+    /// True when search is actively filtering with non-empty text.
+    pub fn is_searching() -> bool {
+        ACTIVE_SEARCH.with(|c| c.borrow().as_ref().map_or(false, |s| !s.trim().is_empty()))
+    }
+
+    /// True when `label` does NOT match the active search filter.
+    /// Returns false when no search is active (row always visible).
+    pub fn row_filtered(label: &str) -> bool {
+        ACTIVE_SEARCH
+            .with(|c| c.borrow().clone())
+            .is_some_and(|s| !should_show_option(&s, label))
+    }
+
+    /// Centralized spacing helper that automatically suppresses layout gaps during search.
+    pub fn space(ui: &mut egui::Ui, amount: f32) {
+        if !Self::is_searching() {
+            ui.add_space(amount);
+        }
+    }
+
+    /// If a category header is pending and an option in this category matched,
+    /// render the category header once directly above the first matched item.
+    pub fn maybe_draw_category_header(ui: &mut egui::Ui) {
+        let header = PENDING_CATEGORY_HEADER.with(|c| c.borrow_mut().take());
+        if let Some(title) = header {
+            let primary = egui_material3::theme::get_global_color("primary");
+            ui.add_space(8.0);
+            let galley = ui.painter().layout_no_wrap(
+                title,
+                egui::FontId::proportional(16.0),
+                primary,
+            );
+            let (resp, painter) = ui.allocate_painter(
+                egui::vec2(ui.available_width(), galley.size().y + 8.0),
+                egui::Sense::hover(),
+            );
+            painter.galley(
+                egui::pos2(resp.rect.min.x + LIST_TILE_PAD_H, resp.rect.min.y + (resp.rect.height() - galley.size().y) / 2.0),
+                galley,
+                primary,
+            );
+            ui.add_space(4.0);
+        }
+    }
+
     pub fn new() -> ConfigEditor {
         let handle = Hachimi::instance().config.load();
         let config = (**handle).clone();
@@ -69,6 +137,7 @@ impl ConfigEditor {
             config,
             id: random_id(),
             current_tab: ConfigEditorTab::General,
+            search_term: String::new(),
             champions_resources:   crate::il2cpp::sql::get_champions_resources(),
             champions_live_max_year: crate::il2cpp::sql::get_champions_live_max_year(),
             font_color_options:    get_enum_options(c"FontColorType"),
@@ -128,12 +197,33 @@ impl ConfigEditor {
         ui.style_mut().wrap_mode = Some(egui::TextWrapMode::Wrap);
         let on_surface_variant = get_global_color("onSurfaceVariant");
         ui.style_mut().visuals.override_text_color = Some(on_surface_variant);
-        match tab {
-            ConfigEditorTab::General  => super::tabs::general::render(self, config, ui),
-            ConfigEditorTab::Graphics => super::tabs::graphics::render(self, config, ui),
-            ConfigEditorTab::Gameplay => super::tabs::gameplay::render(self, config, ui),
-            ConfigEditorTab::Advanced => super::tabs::advanced::render(self, config, ui),
+        ACTIVE_SEARCH.with(|c| *c.borrow_mut() = Some(self.search_term.clone()));
+        if !self.search_term.trim().is_empty() {
+            // Search mode: show matching rows categorized by tab/category.
+            for (t_enum, t_title) in [
+                (ConfigEditorTab::General,  t!("config_editor.general_tab")),
+                (ConfigEditorTab::Graphics, t!("config_editor.graphics_tab")),
+                (ConfigEditorTab::Gameplay, t!("config_editor.gameplay_tab")),
+                (ConfigEditorTab::Advanced, t!("config_editor.advanced_tab")),
+            ] {
+                PENDING_CATEGORY_HEADER.with(|c| *c.borrow_mut() = Some(t_title.to_string()));
+                match t_enum {
+                    ConfigEditorTab::General  => super::tabs::general::render(self, config, ui),
+                    ConfigEditorTab::Graphics => super::tabs::graphics::render(self, config, ui),
+                    ConfigEditorTab::Gameplay => super::tabs::gameplay::render(self, config, ui),
+                    ConfigEditorTab::Advanced => super::tabs::advanced::render(self, config, ui),
+                }
+                PENDING_CATEGORY_HEADER.with(|c| *c.borrow_mut() = None);
+            }
+        } else {
+            match tab {
+                ConfigEditorTab::General  => super::tabs::general::render(self, config, ui),
+                ConfigEditorTab::Graphics => super::tabs::graphics::render(self, config, ui),
+                ConfigEditorTab::Gameplay => super::tabs::gameplay::render(self, config, ui),
+                ConfigEditorTab::Advanced => super::tabs::advanced::render(self, config, ui),
+            }
         }
+        ACTIVE_SEARCH.with(|c| *c.borrow_mut() = None);
     }
 
     // ── list_tile_* helpers ────────────────────────────────────────────────────
@@ -183,6 +273,9 @@ impl ConfigEditor {
         value: &mut bool,
         enabled: bool,
     ) -> egui::Response {
+        let label = label.into();
+        if Self::row_filtered(&label.text().to_string()) { return hidden_response(ui); }
+        Self::maybe_draw_category_header(ui);
         ui.vertical(|ui| {
             let resp = Self::switch_row(ui, label, value, enabled);
             ui.add_space(8.0);
@@ -200,6 +293,9 @@ impl ConfigEditor {
         enabled: bool,
         hint: impl Into<egui::WidgetText>,
     ) -> egui::Response {
+        let label = label.into();
+        if Self::row_filtered(&label.text().to_string()) { return hidden_response(ui); }
+        Self::maybe_draw_category_header(ui);
         ui.vertical(|ui| {
             let resp = Self::switch_row(ui, label, value, enabled);
             if !enabled {
@@ -221,6 +317,9 @@ impl ConfigEditor {
         enabled: bool,
         description: impl Into<egui::WidgetText>,
     ) -> egui::Response {
+        let label = label.into();
+        if Self::row_filtered(&label.text().to_string()) { return hidden_response(ui); }
+        Self::maybe_draw_category_header(ui);
         ui.vertical(|ui| {
             let resp = Self::switch_row(ui, label, value, enabled);
             ui.add_space(2.0);
@@ -240,6 +339,9 @@ impl ConfigEditor {
         enabled: bool,
         description: impl Into<egui::WidgetText>,
     ) -> egui::Response {
+        let label = label.into();
+        if Self::row_filtered(&label.text().to_string()) { return hidden_response(ui); }
+        Self::maybe_draw_category_header(ui);
         ui.vertical(|ui| {
             let resp = Self::switch_row(ui, label, value, enabled);
             ui.add_space(2.0);
@@ -269,6 +371,9 @@ impl ConfigEditor {
         step: f64,
         decimals: usize,
     ) -> egui::Response {
+        let label = label.into();
+        if Self::row_filtered(&label.text().to_string()) { return hidden_response(ui); }
+        Self::maybe_draw_category_header(ui);
         ui.vertical(|ui| {
             ui.add(egui::Label::new(label).wrap());
             let r = slider_with_input(ui, value, range, step, decimals);
@@ -286,6 +391,9 @@ impl ConfigEditor {
         value: &mut T,
         choices: &[(T, &str)],
     ) -> bool {
+        let label = label.into();
+        if Self::row_filtered(&label.text().to_string()) { return false; }
+        Self::maybe_draw_category_header(ui);
         ui.vertical(|ui| {
             ui.add(egui::Label::new(label).wrap());
             let avail = ui.available_width();
@@ -302,6 +410,9 @@ impl ConfigEditor {
         label: impl Into<egui::WidgetText>,
         value: &mut String,
     ) -> egui::Response {
+        let label = label.into();
+        if Self::row_filtered(&label.text().to_string()) { return hidden_response(ui); }
+        Self::maybe_draw_category_header(ui);
         ui.vertical(|ui| {
             ui.add(egui::Label::new(label).wrap());
             ui.set_max_width(ui.available_width());
@@ -320,6 +431,8 @@ impl ConfigEditor {
         value: &mut Option<Num>,
         range: RangeInclusive<Num>,
     ) -> egui::Response {
+        if Self::row_filtered(label) { return hidden_response(ui); }
+        Self::maybe_draw_category_header(ui);
         ui.vertical(|ui| {
             let mut checked = value.is_some();
             // Use switch_row (no trailing gap) — the gap belongs at the end of the whole tile.
@@ -350,6 +463,9 @@ impl ConfigEditor {
         ui: &mut egui::Ui,
         label: impl Into<egui::WidgetText>,
     ) -> bool {
+        let label = label.into();
+        if Self::row_filtered(&label.text().to_string()) { return false; }
+        Self::maybe_draw_category_header(ui);
         ui.vertical(|ui| {
             let clicked = ui.add(
                 MaterialButton::filled_tonal(label)
@@ -368,6 +484,9 @@ impl ConfigEditor {
         label: impl Into<egui::WidgetText>,
         btn_label: impl Into<egui::WidgetText>,
     ) -> bool {
+        let label = label.into();
+        if Self::row_filtered(&label.text().to_string()) { return false; }
+        Self::maybe_draw_category_header(ui);
         ui.vertical(|ui| {
             let clicked = ui.horizontal(|ui| {
                 ui.spacing_mut().item_spacing.x = 8.0;
@@ -396,6 +515,9 @@ impl ConfigEditor {
         ui: &mut egui::Ui,
         label: impl Into<egui::WidgetText>,
     ) -> bool {
+        let label = label.into();
+        if Self::row_filtered(&label.text().to_string()) { return false; }
+        Self::maybe_draw_category_header(ui);
         ui.vertical(|ui| {
             let clicked = ui.add(
                 MaterialButton::filled(label)
@@ -415,6 +537,9 @@ impl ConfigEditor {
         label: impl Into<egui::WidgetText>,
         value: impl Into<egui::WidgetText>,
     ) {
+        let label = label.into();
+        if Self::row_filtered(&label.text().to_string()) { return; }
+        Self::maybe_draw_category_header(ui);
         ui.vertical(|ui| {
             let value: egui::WidgetText = value.into();
             // Measure value text so label column gets all remaining space.
@@ -454,6 +579,9 @@ impl ConfigEditor {
         current: &mut String,
         options: &[String],
     ) {
+        let label = label.into();
+        if Self::row_filtered(&label.text().to_string()) { return; }
+        Self::maybe_draw_category_header(ui);
         ui.add(egui::Label::new(label).wrap());
         let avail = ui.available_width();
         ui.data_mut(|d| d.insert_temp(egui::Id::new("grid_control_w"), avail));
@@ -480,6 +608,9 @@ impl ConfigEditor {
         speed: f64,
         suffix: Option<&str>,
     ) {
+        let label = label.into();
+        if Self::row_filtered(&label.text().to_string()) { return; }
+        Self::maybe_draw_category_header(ui);
         ui.add(egui::Label::new(label).wrap());
         ui.add({
             let mut field = MaterialNumberField::filled(value)

@@ -185,13 +185,45 @@ pub fn config_editor_window_size(ctx: &egui::Context) -> egui::Vec2 {
     let vp = ctx.viewport_rect();
     if is_portrait(ctx) {
         egui::vec2(
-            (vp.width()  * 0.96).min(320.0 * scale),
-            (vp.height() * 0.92).min(400.0 * scale),
+            (vp.width()  * 0.88).min(320.0 * scale),
+            (vp.height() * 0.78).min(440.0 * scale),
         )
     } else {
         egui::vec2(
-            (vp.width()  * 0.92).min(540.0 * scale),
-            (vp.height() * 0.88).min(380.0 * scale),
+            (vp.width()  * 0.85).min(520.0 * scale),
+            (vp.height() * 0.80).min(380.0 * scale),
+        )
+    }
+}
+
+pub fn subwindow_size(ctx: &egui::Context) -> egui::Vec2 {
+    let scale = get_scale(ctx);
+    let vp = ctx.viewport_rect();
+    if is_portrait(ctx) {
+        egui::vec2(
+            (vp.width()  * 0.88).min(320.0 * scale),
+            (vp.height() * 0.78).min(440.0 * scale),
+        )
+    } else {
+        egui::vec2(
+            (vp.width()  * 0.80).min(380.0 * scale),
+            (vp.height() * 0.78).min(380.0 * scale),
+        )
+    }
+}
+
+pub fn dialog_window_size(ctx: &egui::Context) -> egui::Vec2 {
+    let scale = get_scale(ctx);
+    let vp = ctx.viewport_rect();
+    if is_portrait(ctx) {
+        egui::vec2(
+            (vp.width()  * 0.88).min(320.0 * scale),
+            (vp.height() * 0.70).min(360.0 * scale),
+        )
+    } else {
+        egui::vec2(
+            (vp.width()  * 0.75).min(380.0 * scale),
+            (vp.height() * 0.70).min(320.0 * scale),
         )
     }
 }
@@ -248,7 +280,7 @@ pub fn new_window<'a>(
         .max_height(size.y)
         .collapsible(false)
         .resizable(false)
-        .default_size(size)
+        .auto_sized()
         .frame(frame)
 }
 
@@ -297,6 +329,7 @@ pub fn paginated_window_layout(
     allow_next: bool,
     add_page_content: impl FnOnce(&mut egui::Ui, usize),
 ) -> bool {
+    let scale = get_scale(ui.ctx());
     let mut open = true;
 
     let builder = egui::UiBuilder::new()
@@ -308,7 +341,9 @@ pub fn paginated_window_layout(
             add_page_content(ui, *i);
         });
 
+        ui.add_space(4.0 * scale);
         ui.separator();
+        ui.add_space(4.0 * scale);
 
         ui.with_layout(egui::Layout::right_to_left(egui::Align::Min), |ui| {
             if *i < page_count - 1 {
@@ -320,7 +355,7 @@ pub fn paginated_window_layout(
                     open = false;
                 }
             }
-            if *i > 0 && ui.add(MaterialButton::text(t!("previous"))).clicked() {
+            if *i > 0 && ui.add(MaterialButton::outlined(t!("previous"))).clicked() {
                 *i -= 1;
             }
         });
@@ -423,6 +458,9 @@ pub const LIST_TILE_PAD_H: f32 = 16.0;
 /// Used above `settings_card` groups. Draws the label in primary color with
 /// a `12sp` bold-weight font and a thin `outlineVariant` divider underneath.
 pub fn section_heading(ui: &mut egui::Ui, text: impl Into<String>) {
+    if crate::core::gui::config::ConfigEditor::is_searching() {
+        return;
+    }
     let primary = egui_material3::theme::get_global_color("primary");
     let text = text.into();
 
@@ -448,6 +486,14 @@ pub fn section_heading(ui: &mut egui::Ui, text: impl Into<String>) {
         galley,
         primary,
     );
+    ui.add_space(4.0);
+}
+
+/// Adds vertical layout space that is automatically suppressed during search filtering.
+pub fn section_space(ui: &mut egui::Ui, amount: f32) {
+    if !crate::core::gui::config::ConfigEditor::is_searching() {
+        ui.add_space(amount);
+    }
 }
 
 /// Wraps `add_contents` in an MD3 "settings card" — a rounded rect with
