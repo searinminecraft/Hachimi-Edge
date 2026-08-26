@@ -1233,7 +1233,7 @@ dependencies = [
 [[package]]
 name = "egui-material3"
 version = "0.0.12"
-source = "git+https://github.com/Tenshou170/egui-material3.git#814eb53736f6c3f83956c996de62606fa753645a"
+source = "git+https://github.com/Tenshou170/egui-material3.git#8f2d08f1ba788c7e981bfcd3beba18f59f12ef9f"
 dependencies = [
  "base64 0.22.1",
  "dark-light",
@@ -1959,7 +1959,7 @@ dependencies = [
 
 [[package]]
 name = "hachimi"
-version = "0.27.1"
+version = "0.28.0"
 dependencies = [
  "android_logger",
  "arc-swap",
