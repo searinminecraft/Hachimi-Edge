@@ -395,15 +395,43 @@ fn fade_tick_global() {
         alpha = 1.0 - progress.clamp(0.0, 1.0);
     }
 
-    let cg_f = il2cpp_class_get_field_from_name(nk, c"canvasGroup".as_ptr());
+    static CG_FIELD_PTR: AtomicUsize = AtomicUsize::new(0);
+    static SET_ALPHA_FP: AtomicUsize = AtomicUsize::new(0);
+    static GET_GO_FP: AtomicUsize = AtomicUsize::new(0);
+    static SET_ACTIVE_FP: AtomicUsize = AtomicUsize::new(0);
+
+    let cg_f = {
+        let cached = CG_FIELD_PTR.load(Ordering::Relaxed);
+        if cached != 0 {
+            cached as *mut FieldInfo
+        } else {
+            let f = il2cpp_class_get_field_from_name(nk, c"canvasGroup".as_ptr());
+            if !f.is_null() {
+                CG_FIELD_PTR.store(f as usize, Ordering::Relaxed);
+            }
+            f
+        }
+    };
+
     if !cg_f.is_null() {
         let mut cg: *mut Il2CppObject = null_mut();
         il2cpp_field_get_value(notif, cg_f, &mut cg as *mut _ as _);
         if !cg.is_null() {
             unsafe {
-                let set_alpha_fp = method_pointer(il2cpp_class_get_method_from_name(klass(cg), c"set_alpha".as_ptr(), 1));
-                if set_alpha_fp != 0 {
-                    let set_alpha: extern "C" fn(*mut Il2CppObject, f32) = std::mem::transmute(set_alpha_fp);
+                let set_alpha_addr = {
+                    let cached = SET_ALPHA_FP.load(Ordering::Relaxed);
+                    if cached != 0 {
+                        cached
+                    } else {
+                        let fp = method_pointer(il2cpp_class_get_method_from_name(klass(cg), c"set_alpha".as_ptr(), 1));
+                        if fp != 0 {
+                            SET_ALPHA_FP.store(fp, Ordering::Relaxed);
+                        }
+                        fp
+                    }
+                };
+                if set_alpha_addr != 0 {
+                    let set_alpha: extern "C" fn(*mut Il2CppObject, f32) = std::mem::transmute(set_alpha_addr);
                     set_alpha(cg, alpha);
                 }
             }
@@ -412,14 +440,36 @@ fn fade_tick_global() {
 
     if !active {
         unsafe {
-            let go_fp = method_pointer(il2cpp_class_get_method_from_name(nk, c"get_gameObject".as_ptr(), 0));
-            if go_fp != 0 {
-                let get_go: extern "C" fn(*mut Il2CppObject) -> *mut Il2CppObject = std::mem::transmute(go_fp);
+            let go_addr = {
+                let cached = GET_GO_FP.load(Ordering::Relaxed);
+                if cached != 0 {
+                    cached
+                } else {
+                    let fp = method_pointer(il2cpp_class_get_method_from_name(nk, c"get_gameObject".as_ptr(), 0));
+                    if fp != 0 {
+                        GET_GO_FP.store(fp, Ordering::Relaxed);
+                    }
+                    fp
+                }
+            };
+            if go_addr != 0 {
+                let get_go: extern "C" fn(*mut Il2CppObject) -> *mut Il2CppObject = std::mem::transmute(go_addr);
                 let go = get_go(notif);
                 if !go.is_null() {
-                    let sa_fp = method_pointer(il2cpp_class_get_method_from_name(klass(go), c"SetActive".as_ptr(), 1));
-                    if sa_fp != 0 {
-                        let set_active: extern "C" fn(*mut Il2CppObject, bool) = std::mem::transmute(sa_fp);
+                    let sa_addr = {
+                        let cached = SET_ACTIVE_FP.load(Ordering::Relaxed);
+                        if cached != 0 {
+                            cached
+                        } else {
+                            let fp = method_pointer(il2cpp_class_get_method_from_name(klass(go), c"SetActive".as_ptr(), 1));
+                            if fp != 0 {
+                                SET_ACTIVE_FP.store(fp, Ordering::Relaxed);
+                            }
+                            fp
+                        }
+                    };
+                    if sa_addr != 0 {
+                        let set_active: extern "C" fn(*mut Il2CppObject, bool) = std::mem::transmute(sa_addr);
                         set_active(go, false);
                     }
                 }

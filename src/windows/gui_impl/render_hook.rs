@@ -39,27 +39,22 @@ fn check_hwnd(this: *mut c_void) -> HWND {
 
     let target = wnd_hook::get_target_hwnd();
     if target.0.is_null() {
-        debug!("[render_hook] target HWND is null, skipping swap chain checks");
         return HWND(std::ptr::null_mut());
     }
 
     if desc.OutputWindow == target {
-        debug!("[render_hook] swap chain output window directly matches target HWND: {:?}", target);
         return target;
     }
 
     if !desc.OutputWindow.0.is_null() {
         let root = unsafe { GetAncestor(desc.OutputWindow, GA_ROOT) };
         if root == target {
-            debug!("[render_hook] swap chain output window {:?} root is target HWND {:?}", desc.OutputWindow, target);
             return target;
         }
 
-        debug!("[render_hook] swap chain output window {:?} does not match target {:?} or its root {:?}", desc.OutputWindow, target, root);
         return HWND(std::ptr::null_mut());
     }
 
-    debug!("[render_hook] swap chain output window is null, skipping");
     HWND(std::ptr::null_mut())
 }
 
@@ -131,19 +126,25 @@ extern "C" fn IDXGISwapChain_Present(this: *mut c_void, sync_interval: c_uint, f
                 let x = rect.min.x * zoom;
                 let y = rect.max.y * zoom;
                 let y_unity = height as f32 - y;
+                let mut changed = false;
                 if let Ok(mut pos) = IME_COMPOSITION_POS.lock() {
-                    *pos = (x, y_unity);
+                    if *pos != (x, y_unity) {
+                        *pos = (x, y_unity);
+                        changed = true;
+                    }
                 }
 
-                crate::il2cpp::symbols::Thread::main_thread().schedule(|| {
-                    let (x, y_unity) = IME_COMPOSITION_POS.lock()
-                        .map(|g| *g)
-                        .unwrap_or((0.0, 0.0));
+                if changed {
+                    crate::il2cpp::symbols::Thread::main_thread().schedule(|| {
+                        let (x, y_unity) = IME_COMPOSITION_POS.lock()
+                            .map(|g| *g)
+                            .unwrap_or((0.0, 0.0));
 
-                    crate::il2cpp::hook::UnityEngine_InputLegacyModule::Input::set_compositionCursorPos(
-                        crate::il2cpp::types::Vector2_t { x, y: y_unity }
-                    );
-                });
+                        crate::il2cpp::hook::UnityEngine_InputLegacyModule::Input::set_compositionCursorPos(
+                            crate::il2cpp::types::Vector2_t { x, y: y_unity }
+                        );
+                    });
+                }
             }
         }
     }

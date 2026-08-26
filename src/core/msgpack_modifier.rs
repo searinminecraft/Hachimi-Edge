@@ -455,6 +455,14 @@ pub fn read_response(data: &[u8]) {
         return;
     }
 
+    // Scheduled-toast integration is unavailable under Wine/Proton: the WinRT
+    // COM calls run on the game's response-decoding thread and can hang on
+    // Wine's slow/stubbed COM, freezing the game with the splash stuck.
+    #[cfg(target_os = "windows")]
+    if !crate::windows::capabilities::supports_scheduled_toasts() {
+        return;
+    }
+
     let mut cursor = std::io::Cursor::new(data);
     if let Ok(val) = rmpv::decode::read_value(&mut cursor) {
         if let Value::Map(map) = val {

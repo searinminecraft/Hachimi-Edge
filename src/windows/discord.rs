@@ -50,6 +50,42 @@ pub fn start_rpc() -> Result<(), Error> {
     Ok(())
 }
 
+#[allow(dead_code)]
+pub fn update_activity(
+    details: Option<&str>,
+    state: Option<&str>,
+    large_image: Option<&str>,
+    large_text: Option<&str>,
+    start_timestamp: Option<i64>,
+) -> Result<(), Error> {
+    let mut client_guard = DISCORD_CLIENT.lock().unwrap_or_else(|e| e.into_inner());
+    let Some(client) = client_guard.as_mut() else {
+        return Ok(());
+    };
+
+    let mut activity = Activity::new().activity_type(ActivityType::Playing);
+    if let Some(d) = details {
+        activity = activity.details(d);
+    }
+    if let Some(s) = state {
+        activity = activity.state(s);
+    }
+
+    let mut assets = Assets::new().large_image(large_image.unwrap_or("icon"));
+    if let Some(lt) = large_text {
+        assets = assets.large_text(lt);
+    }
+    activity = activity.assets(assets);
+
+    if let Some(ts) = start_timestamp {
+        activity = activity.timestamps(Timestamps::new().start(ts));
+    }
+
+    client.set_activity(activity)
+        .map_err(|e| Error::DiscordRpcError(e.to_string()))?;
+    Ok(())
+}
+
 pub fn stop_rpc() -> Result<(), Error> {
     let mut client_guard = DISCORD_CLIENT.lock().unwrap_or_else(|e| e.into_inner());
     

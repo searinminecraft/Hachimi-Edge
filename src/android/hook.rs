@@ -22,6 +22,8 @@ pub fn cached_api_level() -> i32 {
     CACHED_API_LEVEL.load(Ordering::Acquire)
 }
 
+static DLOPEN_HOOKED_ADDR: AtomicUsize = AtomicUsize::new(0);
+
 type DlopenFn = extern "C" fn(filename: *const c_char, flags: c_int) -> *mut c_void;
 extern "C" fn dlopen(filename: *const c_char, flags: c_int) -> *mut c_void {
     let hachimi = Hachimi::instance();
@@ -33,7 +35,10 @@ extern "C" fn dlopen(filename: *const c_char, flags: c_int) -> *mut c_void {
     if !hachimi.hooking_finished.load(Ordering::Relaxed) && !filename.is_null() {
         let filename_str = unsafe { CStr::from_ptr(filename).to_string_lossy() };
         if hachimi.on_dlopen(&filename_str, handle as usize) {
-            hachimi.interceptor.unhook(dlopen as usize);
+            let addr = DLOPEN_HOOKED_ADDR.load(Ordering::Relaxed);
+            if addr != 0 {
+                hachimi.interceptor.unhook(addr);
+            }
         }
     }
 
@@ -51,7 +56,10 @@ extern "C" fn do_dlopen(filename: *const c_char, flags: c_int, extinfo: *const c
     if !hachimi.hooking_finished.load(Ordering::Relaxed) && !filename.is_null() {
         let filename_str = unsafe { CStr::from_ptr(filename).to_string_lossy() };
         if hachimi.on_dlopen(&filename_str, handle as usize) {
-            hachimi.interceptor.unhook(do_dlopen as usize);
+            let addr = DLOPEN_HOOKED_ADDR.load(Ordering::Relaxed);
+            if addr != 0 {
+                hachimi.interceptor.unhook(addr);
+            }
         }
     }
 
@@ -132,12 +140,12 @@ fn init_internal(env: *mut jni::sys::JNIEnv) -> Result<(), Error> {
 
     info!("Hooking {} at {:#x}", dlopen_name, dlopen_orig);
     hachimi.interceptor.hook(dlopen_orig, dlopen_hook)?;
+    DLOPEN_HOOKED_ADDR.store(dlopen_orig, Ordering::Relaxed);
 
-    if !hachimi.config.load().disable_gui {
+    if !hachimi.config.load().disable_gui && ORIG_REGISTER_NATIVES.load(Ordering::Acquire) == 0 {
         info!("Hooking JNINativeInterface RegisterNatives via JNI vtable");
         unsafe {
             let jni_table = *env as *mut jni::sys::JNINativeInterface_;
-
             let orig = (*jni_table).RegisterNatives;
             ORIG_REGISTER_NATIVES.store(orig.map(|f| f as usize).unwrap_or(0), Ordering::Release);
 

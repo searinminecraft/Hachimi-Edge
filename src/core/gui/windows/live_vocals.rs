@@ -52,7 +52,7 @@ impl AppWindow for LiveVocalsSwapWindow {
 
         new_window(ctx, self.id, t!("config_editor.live_vocals_swap"))
             .open(&mut open)
-            .fixed_size(config_editor_window_size(ctx))
+            .fixed_size(subwindow_size(ctx))
             .show(ctx, |ui| {
                 let content_w = ui.max_rect().width();
                 ui.set_width(content_w);

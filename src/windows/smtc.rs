@@ -21,7 +21,8 @@ use crate::il2cpp::{
     ext::{Il2CppStringExt, StringExt, Il2CppObjectExt},
     hook::{
         UnityEngine_CoreModule::{Texture2D, RenderTexture, Graphics, Texture, SceneManager, Scene},
-        UnityEngine_ImageConversionModule::ImageConversion
+        UnityEngine_ImageConversionModule::ImageConversion,
+        umamusume::Director::LiveLoadSettings
     },
     types::*
 };
@@ -291,11 +292,10 @@ fn get_live_music_id() -> Option<i32> {
     let load_settings = get_load_settings();
     if load_settings.is_null() { return None; }
 
-    let get_music_id_addr = crate::il2cpp::symbols::get_method_addr_cached(unsafe { (*load_settings).klass() }, c"get_MusicId", 0);
-    if get_music_id_addr == 0 { return None; }
+    let music_id = LiveLoadSettings::get_MusicId(load_settings);
+    if music_id == 0 { return None; }
 
-    let get_music_id: extern "C" fn(*mut Il2CppObject) -> i32 = unsafe { std::mem::transmute(get_music_id_addr) };
-    Some(get_music_id(load_settings))
+    Some(music_id)
 }
 
 fn get_jacket_texture(music_id: i32) -> Option<*mut Il2CppObject> {

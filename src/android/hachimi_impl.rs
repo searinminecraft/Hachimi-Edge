@@ -96,6 +96,8 @@ pub struct Config {
     pub enable_gui_landscape_ratio: bool,
     #[serde(default = "Config::default_gui_landscape_ratio")]
     pub gui_landscape_ratio: f32,
+    #[serde(default)]
+    pub force_orientation_mode: i32,
 }
 
 impl Config {

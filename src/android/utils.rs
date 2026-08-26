@@ -320,15 +320,59 @@ pub fn get_safe_insets_jni() -> (f32, f32) {
         if insets.is_null() { return Err(jni::errors::Error::JavaException); }
 
         let api_level = crate::android::hook::cached_api_level();
+        let mut top = 0.0f32;
+        let mut bottom = 0.0f32;
+
         if api_level >= 28 {
-            let cutout = env.call_method(&insets, "getDisplayCutout", "()Landroid/view/DisplayCutout;", &[])?.l()?;
-            if !cutout.is_null() {
-                let top = env.call_method(&cutout, "getSafeInsetTop", "()I", &[])?.i()? as f32;
-                let bottom = env.call_method(&cutout, "getSafeInsetBottom", "()I", &[])?.i()? as f32;
-                return Ok((top, bottom));
+            if let Ok(cutout) = env.call_method(&insets, "getDisplayCutout", "()Landroid/view/DisplayCutout;", &[]) {
+                if let Ok(cutout) = cutout.l() {
+                    if !cutout.is_null() {
+                        if let Ok(t) = env.call_method(&cutout, "getSafeInsetTop", "()I", &[]).and_then(|v| v.i()) {
+                            top = top.max(t as f32);
+                        }
+                        if let Ok(b) = env.call_method(&cutout, "getSafeInsetBottom", "()I", &[]).and_then(|v| v.i()) {
+                            bottom = bottom.max(b as f32);
+                        }
+                    }
+                }
             }
         }
-        Ok((0.0, 0.0))
+
+        // If bottom inset is 0 from cutout, check navigation / system bars
+        if bottom == 0.0 {
+            if api_level >= 30 {
+                // Type.systemBars() = 7 (statusBars = 1 | navigationBars = 2 | captionBar = 4)
+                if let Ok(insets_obj) = env.call_method(&insets, "getInsets", "(I)Landroid/graphics/Insets;", &[jni::objects::JValue::Int(7)]) {
+                    if let Ok(insets_obj) = insets_obj.l() {
+                        if !insets_obj.is_null() {
+                            if let Ok(b) = env.get_field(&insets_obj, "bottom", "I").and_then(|v| v.i()) {
+                                bottom = bottom.max(b as f32);
+                            }
+                            if top == 0.0 {
+                                if let Ok(t) = env.get_field(&insets_obj, "top", "I").and_then(|v| v.i()) {
+                                    top = top.max(t as f32);
+                                }
+                            }
+                        }
+                    }
+                }
+            } else {
+                if let Ok(b) = env.call_method(&insets, "getSystemWindowInsetBottom", "()I", &[]) {
+                    if let Ok(b) = b.i() {
+                        bottom = bottom.max(b as f32);
+                    }
+                }
+                if top == 0.0 {
+                    if let Ok(t) = env.call_method(&insets, "getSystemWindowInsetTop", "()I", &[]) {
+                        if let Ok(t) = t.i() {
+                            top = top.max(t as f32);
+                        }
+                    }
+                }
+            }
+        }
+
+        Ok((top, bottom))
     })();
 
     match is_ok {

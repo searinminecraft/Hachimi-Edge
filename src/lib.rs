@@ -30,7 +30,7 @@ static GLOBAL: mimalloc::MiMalloc = mimalloc::MiMalloc;
 #[used]
 #[no_mangle]
 static HACHIMI_VERSION_MARKER: &str =
-    concat!("HACHIMI_VERSION:", env!("HACHIMI_DISPLAY_VERSION"));
+    concat!("HACHIMI_VERSION:", env!("HACHIMI_DISPLAY_VERSION"), "\0");
 
 rust_i18n::i18n!("assets/locales", fallback = "en");
 

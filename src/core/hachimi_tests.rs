@@ -42,4 +42,15 @@ mod tests {
     fn caption_config_default_is_serializable() {
         let _ = serde_json::to_value(&CaptionConfig::default()).expect("default CaptionConfig must serialize");
     }
+
+    #[test]
+    fn test_regex_replacement_rules() {
+        let pattern = r"^(\d+)個$";
+        let replacement = "$1 items";
+        let re = regex::Regex::new(pattern).unwrap();
+        let input = "5個";
+        assert!(re.is_match(input));
+        let result = re.replace_all(input, replacement).into_owned();
+        assert_eq!(result, "5 items");
+    }
 }

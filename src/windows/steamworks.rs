@@ -21,15 +21,20 @@ impl SteamUtils {
         }
 
         let orig_fn: extern "C" fn() -> *mut c_void = unsafe { std::mem::transmute(addr) };
-        NonNull::new(orig_fn()).map(|p| Self(p))
+        let ptr = std::panic::catch_unwind(|| orig_fn()).ok()?;
+        NonNull::new(ptr).map(Self)
     }
 
     pub fn is_overlay_enabled(&self) -> bool {
         let addr = SteamAPI_ISteamUtils_IsOverlayEnabled_addr.load(Ordering::Relaxed);
         if addr == 0 { return false; }
         let orig_fn: extern "C" fn(*mut c_void) -> bool = unsafe { std::mem::transmute(addr) };
-        orig_fn(self.0.as_ptr())
+        std::panic::catch_unwind(|| orig_fn(self.0.as_ptr())).unwrap_or(false)
     }
+}
+
+pub fn is_inited() -> bool {
+    SteamAPI_SteamUtils_v010_addr.load(Ordering::Relaxed) != 0
 }
 
 pub fn init(steam_api: HMODULE) {
@@ -43,7 +48,18 @@ fn is_using_overlay() -> bool {
     std::env::var("SteamOverlayGameId").is_ok()
 }
 
+pub fn needs_init(hachimi: &Hachimi) -> bool {
+    if !hachimi.game.is_steam_release || hachimi.config.load().disable_gui {
+        return false;
+    }
+    is_using_overlay() && !is_inited()
+}
+
 pub fn is_overlay_conflicting(hachimi: &Hachimi) -> bool {
+    if !is_inited() {
+        return false;
+    }
+
     if SteamUtils::get().is_some_and(|u| u.is_overlay_enabled()) {
         // overlay has successfully initialized and is not conflicting with Hachimi
         return false;

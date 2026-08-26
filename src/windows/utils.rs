@@ -37,6 +37,14 @@ pub fn get_proc_address(hmodule: HMODULE, name: &CStr) -> usize {
     }
 }
 
+pub fn get_module_path(hmodule: HMODULE) -> PathBuf {
+    let mut slice = [0u16; MAX_PATH as usize];
+    let length = unsafe { GetModuleFileNameW(Some(hmodule), &mut slice) } as usize;
+    let path_str = unsafe { Utf16Str::from_slice_unchecked(&slice[..length]) }.to_string();
+
+    PathBuf::from(path_str)
+}
+
 pub fn get_exec_path() -> PathBuf {
     let mut slice = [0u16; MAX_PATH as usize];
     let length = unsafe { GetModuleFileNameW(None, &mut slice) } as usize;
@@ -47,7 +55,7 @@ pub fn get_exec_path() -> PathBuf {
 
 pub fn get_game_dir() -> PathBuf {
     let exec_path = get_exec_path();
-    let parent = exec_path.parent().unwrap();
+    let parent = exec_path.parent().unwrap_or(&exec_path);
     parent.to_owned()
 }
 
