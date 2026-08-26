@@ -119,6 +119,7 @@ const EXCEPT_TRAINING_SCENE_ALLOWED_VIEW_IDS: &[i32] = &[5901];
 const SUPPRESS_VIEW_IDS: &[i32] = &[
     101,  // Home
     3200, // Umamusume Stories
+    5620, // Daily Legend Races
     8320, // "Beyond Memories" Event
 ];
 const EXCEPT_VIEW_IDS: &[i32] = &[
