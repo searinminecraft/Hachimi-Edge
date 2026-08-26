@@ -18,6 +18,8 @@ previous: "上一步"
 yes: "是"
 no: "否"
 ok: "确定"
+remove: "移除"
+save_changes: "保存更改？"
 retry: "重试"
 bind_key: "绑定按键"
 set_keybind: 
@@ -37,6 +39,21 @@ soft_restart_confirm_content: "确定要软重启游戏吗？"
 in_game_browser_confirm_content: "确定要打开游戏内浏览器吗？"
 browser_dialog_title: "浏览器"
 
+change_translation_repo:
+  title: "更换翻译仓库"
+  no_repos: "尚未下载任何翻译仓库。"
+  browse_repositories: "浏览仓库"
+  active: "当前"
+  available: "可用"
+  confirm_remove: "确定要移除「%{name}」吗？"
+  cannot_remove_active: "无法移除当前正在使用的仓库。请先切换到其他仓库。"
+  removing: "正在移除翻译仓库..."
+  remove_in_progress: "无法移除翻译仓库，已有移除任务正在进行中。"
+
+add_translation_repo:
+  title: "添加翻译仓库"
+  select_translation_repo: "选择翻译仓库："
+
 menu: 
   check_for_updates: "\ue923 检查更新"
   fps_text: "帧率: %{fps}"
@@ -48,6 +65,7 @@ menu:
   open_config_editor: "\ue8b9 打开配置编辑器"
   reload_config: "\ue5d5 重新加载配置"
   open_first_time_setup: "\ue869 打开初始化设置"
+  change_translation_repo: "\ue8da 更换翻译仓库"
   graphics_heading: "\ueb97 图形设置"
   fps_label: "帧率限制"
   vsync_label: "垂直同步"
@@ -68,10 +86,15 @@ menu:
 
 notification: 
   saved_localize_dump: "已保存到 localize_dump.json"
+  free_camera_unavailable_live: "自由视角在本 Live 中存在已知问题，在此 Live 中将不会启用自由视角。"
+  freeform_window_disabled_landscape: "检测到横屏模式，自由窗口已自动关闭。"
   config_reloaded: "配置已重新加载"
   config_saved: "配置已保存"
+  recommended_ui_scale_applied: "已应用推荐的界面缩放比例"
   config_error: "配置文件已损坏，将使用默认值..."
   localized_data_reloaded: "本地化数据已重新加载"
+  tl_repo_changed: "翻译仓库已更换，本地化数据已重新加载。"
+  tl_repo_folder_missing: "翻译数据文件夹缺失。请检查更新以恢复翻译。"
   checking_for_tl_updates: "正在检查翻译更新..."
   checking_for_addon_updates: "正在检查插件更新..."
   no_tl_updates: "无可用翻译更新"
@@ -213,11 +236,18 @@ config_editor:
   hide_ingame_ui_hotkey: "隐藏游戏内 UI 的快捷键"
   hide_ingame_ui_hotkey_info: >-
     此选项允许使用快捷键切换游戏内 UI 界面的显示。
-    Android 端，您需要双击“音量上键”，或连续三次点击屏幕右上角。
+    Android 端，可连续三次点击屏幕右上角。
     对于配备键盘的 PC/Android 设备，默认按键为 Insert，并可在 GUI 或配置文件中进行更改。
   unlock_live_chara: "解锁 Live 剧场角色/歌曲"
   live_slider_always_show: "始终显示 Live 进度条"
   live_playback_loop: "循环播放 Live 演出"
+  trainer_live_landscape: "在竖屏 Live 中强制使用横屏模式"
+  force_orientation_mode: "屏幕方向锁定模式"
+  recommended_ui_scale: "应用推荐的界面缩放比例"
+  freeform_window: "自由窗口"
+  freeform_ui_scale_auto: "自由窗口下自动缩放界面"
+  freeform_ui_scale_auto_ratio: "自动界面缩放系数"
+  free_camera: "自由视角"
   champions_live_show_text: "覆盖冠军赛 Live 文本"
   champions_live_resource_id: "冠军赛标题"
   champions_live_year: "冠军赛年份"
@@ -391,3 +421,111 @@ key_names:
   plus: "加号"
   equals: "等号"
   unknown: "按键 %{code}"
+free_camera:
+  enable: "启用自由视角"
+  settings_title: "自由视角设置"
+  section_general: "通用"
+  section_live: "Live 剧场"
+  section_race: "比赛"
+  section_keybinds: "Windows 按键绑定"
+  remove_camera_effects: "移除镜头效果"
+  live_remove_screen_effects: "去除屏幕光效"
+  live_disable_character_teleport: "禁用角色瞬移"
+  live_force_all_characters_visible: "使所有角色始终可见"
+  show_overlay: "显示切换提示"
+  selfie_use_head_transform: "跟随角色自拍杆模式"
+  mode: "模式"
+  mode_free: "自由移动"
+  mode_first_person: "第一人称"
+  mode_selfie_stick: "跟随角色"
+  live_move_step: "Live 移动步长"
+  race_move_step: "比赛移动步长"
+  look_step: "视角步长"
+  mouse_speed: "鼠标速度"
+  live_fov: "Live 视野"
+  race_fov: "比赛视野"
+  gamepad_deadzone: "手柄死区"
+  gamepad_move_speed: "手柄移动速度"
+  gamepad_look_speed: "手柄视角速度"
+  live_target_position: "Live 目标位置"
+  live_target_part: "Live 目标部位"
+  live_selfie_horizontal_stabilization: "Live 跟随角色水平防抖范围"
+  live_selfie_vertical_stabilization: "Live 跟随角色垂直防抖范围"
+  live_follow_offset: "Live 跟随偏移"
+  live_follow_lookat_offset: "Live 注视偏移"
+  live_follow_smooth: "平滑 Live 跟随"
+  live_follow_smooth_lookat_step: "Live 注视平滑"
+  live_follow_smooth_pos_step: "Live 位置平滑"
+  live_first_person_offset: "Live 第一人称偏移"
+  race_target_index: "比赛目标编号（-1 = 自动）"
+  race_follow_offset: "比赛跟随偏移"
+  race_follow_distance: "比赛跟随距离"
+  race_first_person_lookat_offset: "比赛注视偏移"
+  overlay_mode: "模式：%{mode}"
+  overlay_target: "目标：%{target}"
+  overlay_part: "部位：%{part}"
+  target_auto: "自动"
+  target_gate: "闸位 %{index}"
+  key_move_forward: "向前移动"
+  key_move_back: "向后移动"
+  key_move_left: "向左移动"
+  key_move_right: "向右移动"
+  key_move_down: "向下移动"
+  key_move_up: "向上移动"
+  key_look_up: "向上看"
+  key_look_down: "向下看"
+  key_look_left: "向左看"
+  key_look_right: "向右看"
+  key_fov_increase: "增大视野"
+  key_fov_decrease: "减小视野"
+  key_follow_offset_up: "跟随偏移向上"
+  key_follow_offset_down: "跟随偏移向下"
+  key_follow_offset_left: "跟随偏移向左"
+  key_follow_offset_right: "跟随偏移向右"
+  key_target_previous: "上一个目标"
+  key_target_next: "下一个目标"
+  key_part_previous: "上一个 Live 部位"
+  key_part_next: "下一个 Live 部位"
+  key_reset: "重置"
+  key_cycle_mode: "切换模式"
+  key_reverse: "反向"
+  cheatsheet_title: "自由视角快捷指南"
+  cheatsheet_contents: |
+    # 自由视角快捷指南
+    本功能仅在 **比赛** 或 **Live 舞台** 中生效。
+
+    默认跟随部位为 **头部**。
+
+    在比赛中默认跟随 **1号闸位**。
+
+    ## 鼠标操作
+    * **按住右键并拖动：** 旋转视角
+    * **滚轮向上 / 向下：** 调整FOV
+
+    ---
+
+    ## 手柄操作 (Xbox / PlayStation)
+
+    ### **移动与视角**
+    * **左摇杆：** 移动
+    * **右摇杆：** 旋转视角
+    * **右扳机键 (RT / R2)：** 上升
+    * **左扳机键 (LT / L2)：** 下降
+    * **右侧肩键 (RB / R1)：** 减小FOV
+    * **左侧肩键 (LB / L1)：** 增大FOV
+
+    ---
+
+    ### 功能按键
+    * **Y键** (三角)：重置相机位置
+    * **X键** (方块)：切换相机模式
+    * **B键** (圆圈)：翻转跟随视角方向 *(前 <-> 后，仅跟随角色模式)*
+    * **A键** (叉号)：暂停 Live
+
+    ---
+
+    ### 十字键控制 (自由移动模式下不可用)
+    * **十字键-左：** 上一个目标 *(仅跟随角色与第一人称)*
+    * **十字键-右：** 下一个目标 *(仅跟随角色与第一人称)*
+    * **十字键-上：** 下一个部位 *(仅跟随角色)*
+    * **十字键-下：** 上一个部位 *(仅跟随角色)*

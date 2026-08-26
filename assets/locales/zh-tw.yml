@@ -7,7 +7,7 @@ android:
   menu_open_key: "提高音量鍵 + 降低音量鍵\n\uf72b 或 三擊左上角"
 
 splash_sub: "\ue5d2 按下 %{open_key_str} 來打開選單。"
-loading_label: "載入中"
+loading_label: "載入中..."
 search_filter: "輸入以搜尋..."
 open: "開啟"
 cancel: "取消"
@@ -17,7 +17,9 @@ next: "下一步"
 previous: "上一步"
 yes: "是"
 no: "否"
-ok: "OK"
+ok: "確定"
+remove: "移除"
+save_changes: "儲存變更？"
 retry: "重試"
 bind_key: "綁定按鍵"
 set_keybind: 
@@ -37,173 +39,197 @@ soft_restart_confirm_content: "您是否想要軟重啟本遊戲？"
 in_game_browser_confirm_content: "您是否想要開啟遊戲內瀏覽器？"
 browser_dialog_title: "瀏覽器"
 
+change_translation_repo:
+  title: "更換翻譯資料庫"
+  no_repos: "尚未下載任何翻譯資料庫。"
+  browse_repositories: "瀏覽資料庫"
+  active: "目前"
+  available: "可用"
+  confirm_remove: "確定要移除「%{name}」嗎？"
+  cannot_remove_active: "無法移除目前正在使用的資料庫。請先切換至其他資料庫。"
+  removing: "正在移除翻譯資料庫..."
+  remove_in_progress: "無法移除翻譯資料庫，已有移除工作正在進行中。"
+
+add_translation_repo:
+  title: "新增翻譯資料庫"
+  select_translation_repo: "選擇翻譯資料庫："
+
 menu: 
   check_for_updates: "\ue923 檢查更新"
   fps_text: "FPS: %{fps}"
   close_menu: "\ue5cd 關閉選單"
-  stats_heading: "\ue473 狀態"
+  stats_heading: "\ue473 統計數據"
   localize_dict_entries: "localize_dict 載入數量: %{count}"
   hashed_dict_entries: "hashed_dict 載入數量: %{count}"
-  config_heading: "\ue8b8 設置"
-  open_config_editor: "\ue8b9 開啟設置編輯器"
-  reload_config: "\ue5d5 重新載入設置"
+  config_heading: "\ue8b8 設定"
+  open_config_editor: "\ue8b9 開啟設定編輯器"
+  reload_config: "\ue5d5 重新載入設定"
   open_first_time_setup: "\ue869 開啟設定精靈"
+  change_translation_repo: "\ue8da 更換翻譯資料庫"
   graphics_heading: "\ueb97 圖像"
-  fps_label: "FPS"
+  fps_label: "FPS 限制"
   vsync_label: "垂直同步"
-  stay_on_top: "保持在最上層"
+  stay_on_top: "視窗保持在最上層"
   keep_screen_on: "防止螢幕逾時"
   translation_heading: "\ue894 翻譯"
-  reload_localized_data: "\ue5d5 重新載入翻譯數據"
+  reload_localized_data: "\ue5d5 重新載入在地化資料"
   tl_check_for_updates: "\ue923 檢查翻譯更新"
-  tl_check_for_updates_pedantic: "\ue923 檢查翻譯更新（深度模式）"
-  tl_check_for_addon_updates_pedantic: "\ue923 檢查插件更新（深度模式）"
+  tl_check_for_updates_pedantic: "\ue923 檢查翻譯更新（詳細模式）"
+  tl_check_for_addon_updates_pedantic: "\ue923 檢查附加元件更新（詳細模式）"
   dump_localize_dict: "\ue2c4 匯出在地化字典"
   danger_zone_heading: "\ue8b2 危險區域"
-  danger_zone_warning: "更改這些選項可能會導致遊戲異常，請小心使用！"
+  danger_zone_warning: "更改這些選項可能會對遊戲產生異常影響，請謹慎使用！"
   soft_restart: "\ue5d5 軟重啟"
   open_in_game_browser: "\ue80b 開啟遊戲內瀏覽器"
-  toggle_game_ui: "\ue8f4 開啟/關閉遊戲 UI"
+  toggle_game_ui: "\ue8f4 切換遊戲介面顯示"
   discord_rpc: "Discord RPC"
 
 notification: 
-  saved_localize_dump: "保存至 localize_dump.json"
-  config_reloaded: "已重新載入設置。"
-  config_saved: "已保存設置。"
-  config_error: "設置檔案已損毀，將使用預設值..."
-  localized_data_reloaded: "已重新載入翻譯資料。"
-  checking_for_tl_updates: "檢查翻譯更新"
-  checking_for_addon_updates: "正在檢查插件更新..."
+  saved_localize_dump: "已儲存至 localize_dump.json"
+  free_camera_unavailable_live: "自由視角在本 Live 中存在已知問題，在此 Live 中將不會啟用自由視角。"
+  freeform_window_disabled_landscape: "偵測到橫向模式，自由視窗已自動關閉。"
+  config_reloaded: "設定已重新載入。"
+  config_saved: "設定已儲存。"
+  recommended_ui_scale_applied: "已套用建議的介面縮放比例"
+  config_error: "設定檔案已損毀，將使用預設值..."
+  localized_data_reloaded: "在地化資料已重新載入。"
+  tl_repo_changed: "翻譯資料庫已更換，在地化資料已重新載入。"
+  tl_repo_folder_missing: "翻譯資料資料夾遺失。請檢查更新以復原翻譯。"
+  checking_for_tl_updates: "正在檢查翻譯更新..."
+  checking_for_addon_updates: "正在檢查附加元件更新..."
   no_tl_updates: "沒有可用的翻譯更新。"
-  no_addon_updates: "沒有可用的插件更新。"
+  no_addon_updates: "沒有可用的附加元件更新。"
   update_failed: "更新失敗: %{reason}"
   update_completed: "更新完成。"
   mod_update_completed: "附加元件更新完成。"
-  errors_during_update: "更新時發生 %{count} 個錯誤，請確認日誌以獲取更多資訊。"
-  checking_for_updates: "檢查更新"
-  no_updates: "無可用的更新。"
+  errors_during_update: "更新時發生 %{count} 個錯誤，請查看記錄以獲取詳細資訊。"
+  checking_for_updates: "正在檢查更新..."
+  no_updates: "沒有可用的更新。"
   press_to_set_menu_key: "請在遊戲視窗按下新的按鍵以設為開啟選單按鍵。"
-  menu_open_key_set: "已設置開啟選單按鍵為 %{key}"
-  ipc_softreset_exec: "已遠端軟重啟（IPC）。"
+  menu_open_key_set: "已設定開啟選單按鍵為 %{key}"
+  ipc_softreset_exec: "已執行遠端軟重啟（IPC）。"
   atlas_workaround_reset: "偵測到 Atlas 檔案更新：已重新套用 Atlas 翻譯修復。"
-  asset_mismatch: "部分資源因版本更新已被停用，請查看日誌了解詳情。"
+  asset_mismatch: "部分資源因版本更新已被停用，請查看記錄了解詳情。"
   error_occurred: "發生錯誤: %{reason}"
 
 first_time_setup: 
   title: "設定精靈"
   welcome_heading: "歡迎"
   welcome_content: >-
-    歡迎使用 Hachimi！此設定精靈將會引導您完成翻譯器的初始化。
-    如果您不需要使用翻譯功能，您可以關閉此對話框。
-    您也可以隨時在設置編輯器中更改這些選項。
+    Hachimi 已安裝成功！此設定精靈將引導您完成初始設定。
+    如果您不需要使用翻譯功能，可以直接關閉此視窗跳過設定。
+    免責聲明：Hachimi 是一個社群驅動的專案。所有翻譯均由不同的社群貢獻者製作。
+    本專案並非由 Cygames, Inc. 開發或認可，且違反了遊戲的服務條款。繼續使用即表示
+    您接受自行承擔使用風險。
 
 
   translation_repo_heading: "翻譯資料庫"
-  select_translation_repo: "選擇一個翻譯資料庫："
+  select_translation_repo: "選擇翻譯資料庫："
   no_compatible_repo: "沒有與此遊戲版本相容的翻譯資料庫。"
   skip_translation: "跳過翻譯設定。"
   complete_heading: "全部完成！"
   complete_content: >-
-    已設置翻譯資料庫。
-    點擊完成後，配置將被保存並檢查更新，
-    這將提示您下載新的翻譯數據。
+    點擊「完成」以儲存設定。
+    如果您選擇了翻譯資料庫，系統將執行更新檢查，
+    並提示您下載新的翻譯資料。
 
 about: 
   title: "關於"
-  copyright: "© 2024-%{year} LeadRDRK, kairusds and contributors"
+  copyright: "© 2024-%{year} LeadRDRK, kairusds 及貢獻者"
   view_license: "查看許可證"
   open_website: "開啟網站"
   view_source_code: "查看原始碼"
 
 license: 
   title: "許可證"
-  gpl_v3_only_notice: "GPL-3.0-only 許可證文本"
+  gpl_v3_only_notice: "GPL-3.0-only 許可證文字"
 
 tl_updater: 
-  title: "更新中"
+  title: "更新中..."
   title_mod: "更新附加元件..."
   checking: "正在檢查..."
-  warning: "Translations will not work while update is in progress"
+  warning: "翻譯功能在更新期間將暫時無法使用"
 
 config_editor: 
-  title: "設置編輯器"
+  title: "設定編輯器"
   general_tab: "\ue8b9 一般"
   graphics_tab: "\ueb97 圖像"
-  gameplay_tab: "\ue30f 遊戲"
+  gameplay_tab: "\ue30f 遊戲玩法"
   advanced_tab: "\ue869 進階"
   advanced_settings_heading: "進階"
   experimental_settings_heading: "實驗性"
   developer_settings_heading: "開發者"
   language: "語言"
   restore_defaults: "還原預設值"
-  disable_overlay: "禁用覆蓋層 (GUI)"
+  disable_overlay: "停用覆蓋層 (GUI)"
   disable_overlay_warning: >-
     此選項會在您重新啟動遊戲後停用 Hachimi 覆蓋層，
-    這意味著您將無法訪問設置編輯器。
-    如果是不小心誤觸此選項，請關閉此對話框並禁用該選項。
-  ipv4_only: "僅限 IPv4 ureq"
+    這意味著您將無法再開啟設定編輯器。
+    如果是不小心誤觸此選項，請關閉此對話框並停用該選項。
+  ipv4_only: "僅接收 IPv4 請求"
   meta_index_url: "翻譯 Meta URL"
   debug_mode: "除錯模式"
   enable_file_logging: "啟用檔案記錄"
-  apply_atlas_workaround: "套用 TL Atlas 修復"
+  apply_atlas_workaround: "套用翻譯 Atlas 修復"
   disable_outdated_asset_notif: "停用過時資源通知"
   translator_mode: "翻譯者模式"
   skip_first_time_setup: "跳過設定精靈"
   lazy_translation_updates: "寬鬆翻譯更新檢查"
-  disable_auto_update_check: "禁用自動更新檢查"
+  disable_auto_update_check: "停用自動更新檢查"
   bg_update_mode: "背景更新模式"
   bg_update_periodic: "定期（提示）"
   bg_update_silent: "靜默（自動）"
   bg_update_interval: "背景更新間隔"
   bg_update_interval_unit: "分鐘"
-  disable_mod_downloads: "禁用附加元件下載"
+  disable_mod_downloads: "停用附加元件下載"
   translation_repo_index_mod: "翻譯附加元件索引 URL"
-  disable_translations: "禁用翻譯"
+  disable_translations: "停用翻譯功能"
   enable_ipc: "啟用 IPC"
-  ipc_listen_all: "監聽所有 IPC 地址"
+  ipc_listen_all: "IPC 監聽所有位址"
   auto_translate_stories: "自動翻譯劇情"
   auto_tl_warning: >-
-    注意：此功能無法獨立運行，需要外部設置。
+    注意：此功能無法獨立運作，需要外部設定。
     啟用此選項需要您的電腦上安裝相容的翻譯伺服器，
-    或使用提供 API 的雲服務（如 py3translationServer 或 Sugoi Toolkit）。
-    若未運行伺服器，將無法進行額外翻譯，且可能影響遊戲運行。
+    或使用提供 API 的雲端服務（如 py3translationServer 或 Sugoi Toolkit）。
+    若未執行伺服器，將無法進行額外翻譯，且可能影響遊戲運作。
     如果您沒有可用的翻譯伺服器，請保持此選項關閉。
-  auto_translate_ui: "自動翻譯 UI"
-  auto_translate_ui_desc: "可能導致UI錯誤"
+  auto_translate_ui: "自動翻譯遊戲介面"
+  auto_translate_ui_desc: "可能導致遊戲介面異常"
   notification_tp: "TP 恢復通知"
   notification_rp: "RP 恢復通知"
   notification_jobs: "任務完成通知"
   taskbar_show_progress_on_download: "下載時顯示工作列進度"
   taskbar_show_progress_on_connecting: "連線時顯示工作列進度"
-  dump_msgpack: "導出 MsgPack 回應"
-  dump_msgpack_request: "導出 MsgPack 請求"
+  taskbar_show_progress_on_schedule_book: "在訓練員日程中顯示工作列進度"
+  dump_msgpack: "匯出 MsgPack 回應"
+  dump_msgpack_request: "匯出 MsgPack 請求"
   msgpack_notifier: "啟用 MsgPack 通知器"
   msgpack_notifier_request: "在通知器中包含請求"
   msgpack_notifier_host: "通知器主機 URL"
   msgpack_notifier_print_error: "將 HTTP 錯誤輸出至主控台"
   target_fps: "目標 FPS"
   virtual_resolution_multiplier: "虛擬解析度倍率"
-  ui_scale: "UI 比例"
-  gui_scale: "疊加層縮放"
-  gui_landscape_ratio: "橫屏覆蓋層縮放比例"
+  ui_scale: "介面縮放比例"
+  gui_scale: "覆蓋層縮放"
+  gui_landscape_ratio: "橫向覆蓋層縮放比例"
   ui_animation_scale: "UI 動畫速度"
   graphics_quality: "圖像品質"
-  vsync: "VSync"
+  vsync: "垂直同步"
   auto_full_screen: "自動全螢幕"
   full_screen_mode: "全螢幕模式"
-  full_screen_mode_exclusive: "獨佔 (Exclusive)"
-  full_screen_mode_borderless: "無邊界 (Borderless)"
-  block_minimize_in_full_screen: "阻止全螢幕最小化"
+  full_screen_mode_exclusive: "獨佔全螢幕 (Exclusive)"
+  full_screen_mode_borderless: "無邊框視窗 (Borderless)"
+  block_minimize_in_full_screen: "全螢幕時阻止最小化"
   resolution_scaling: "解析度縮放模式"
   resolution_scaling_default: "預設 (1080p)"
   resolution_scaling_ssize: "縮放至螢幕大小"
   resolution_scaling_wsize: "縮放至視窗大小"
   window_always_on_top: "視窗保持在最上層"
-  story_choice_auto_select_delay: "劇情選項\n自動選擇延遲"
+  story_choice_auto_select_delay: "劇情選項自動選擇延遲"
   story_text_speed_multiplier: "劇情文字速度倍率"
-  force_allow_dynamic_camera: "強制允許動態相機"
-  live_theater_allow_same_chara: "演唱會劇場中\n允許設置相同角色"
-  physics_update_mode: "物理運算模式"
+  force_allow_dynamic_camera: "強制啟用動態鏡頭"
+  live_theater_allow_same_chara: "在 LIVE 劇場中允許設置多個相同角色"
+  physics_update_mode: "物理引擎更新模式"
   cyspring_mono_uncap_frame_scale: "CySpring Mono 幀率縮放解鎖"
   cyspring_disable_native: "強制 CySpring Mono 路徑"
   cyspring_disable_native_desc: "停用原生插件"
@@ -211,11 +237,18 @@ config_editor:
   hide_ingame_ui_hotkey: "隱藏遊戲內 UI 快捷鍵"
   hide_ingame_ui_hotkey_info: >-
     此選項允許使用快捷鍵切換遊戲內介面（UI）的顯示。
-    Android 端，您需要雙擊「音量上鍵」，或連續三次點擊螢幕右上角。
-    對於配備鍵盤的 PC/Android 裝置，預設按鍵為 Insert，並可在 GUI 或設定檔中進行更改。
+    Android 端，可連續三次點擊螢幕右上角。
+    對於配備鍵盤的 PC/Android 裝置，預設按鍵為 Insert，並可在 GUI 或設定檔中進行變更。
   unlock_live_chara: "解鎖 Live 劇場角色/歌曲"
   live_slider_always_show: "始終顯示 Live 進度條"
   live_playback_loop: "循環播放 Live 演出"
+  trainer_live_landscape: "在 MeniShuki Live 中強制使用橫向模式"
+  force_orientation_mode: "螢幕方向鎖定模式"
+  recommended_ui_scale: "套用建議的介面縮放比例"
+  freeform_window: "自由視窗"
+  freeform_ui_scale_auto: "自由視窗下自動縮放介面"
+  freeform_ui_scale_auto_ratio: "自動介面縮放係數"
+  free_camera: "自由視角"
   champions_live_show_text: "覆蓋冠軍賽 Live 文字"
   champions_live_resource_id: "冠軍賽標題"
   champions_live_year: "冠軍賽年份"
@@ -225,14 +258,14 @@ config_editor:
   caption_pos_x: "位置 X"
   caption_pos_y: "位置 Y"
   caption_color: "文字顏色"
-  caption_fallback_enable: "回退換行"
-  caption_fallback_tooltip: "每 N 個字元插入軟換行"
+  caption_fallback_enable: "回退換行（實驗性）"
+  caption_fallback_tooltip: "每 N 個字元處插入軟換行（會停用進階換行）"
   caption_show_logging: "記錄字幕顯示事件"
-  caption_show_logging_tooltip: "啟用後，字幕可見性與事件將寫入日誌輸出"
+  caption_show_logging_tooltip: "啟用後，字幕可見性與事件將寫入記錄輸出"
   caption_format_logging: "記錄字幕格式化"
-  caption_format_logging_tooltip: "啟用後，字幕格式化步驟將寫入日誌輸出"
+  caption_format_logging_tooltip: "啟用後，字幕格式化步驟將寫入記錄輸出"
   caption_logging: "記錄字幕以便除錯"
-  caption_logging_tooltip: "啟用後，字幕會寫入日誌輸出"
+  caption_logging_tooltip: "啟用後，字幕會寫入記錄輸出"
   caption_lines_char_count: "每行字元數"
   caption_outline_color: "描邊顏色"
   caption_outline_size: "描邊大小"
@@ -240,20 +273,20 @@ config_editor:
   discord_rpc: "Discord RPC"
   enable_smtc: "啟用 Windows 媒體控制"
   unavailable_wine_proton: "在 Wine/Proton 下無法使用"
-  menu_open_key: "選單開啟熱鍵"
+  menu_open_key: "選單開啟快捷鍵"
   menu_open_key_set: "設定"
   msaa: "MSAA"
   render_scale: "渲染比例"
   aniso_level: "各向異性過濾"
-  live_vocals_swap: "Live演唱人聲切換"
+  live_vocals_swap: "Live 演唱人聲切換"
   live_vocals_swap_character_n: "角色 %{index}"
-  skill_info_dialog: "自訂技能資訊視窗"
+  skill_info_dialog: "自訂技能資訊彈窗"
   homescreen_bgseason: "主介面背景季節"
   shadow_resolution: "陰影解析度"
   text_debug: "文字除錯模式"
   text_log: "記錄已處理的文字"
   text_property_dump: "匯出 UI 屬性"
-  text_localize_dump: "匯出本地化字串"
+  text_localize_dump: "匯出在地化字串"
   text_position_debug: "記錄位置偏移"
   text_path_debug: "記錄 UI 路徑"
   sugoi_url: "自動翻譯伺服器 URL"
@@ -264,9 +297,9 @@ config_editor:
   hide_ingame_ui_hotkey_bind: "隱藏 UI 快捷鍵"
   ui_loading_show_orientation_guide: "載入時顯示方向引導"
   full_screen_res: "自訂全螢幕解析度"
-  landscape: "橫屏"
-  portrait: "豎屏"
-  localized_data_dir: "本地化資料目錄"
+  landscape: "橫向"
+  portrait: "直向"
+  localized_data_dir: "在地化資料目錄"
   hook_libc_dlopen: "強制 libc dlopen 掛鉤（Waydroid/模擬器）"
   keep_screen_on: "防止螢幕逾時"
 
@@ -287,7 +320,7 @@ theme_editor:
   primary: "主色"
   surface: "表面色"
   on_surface: "表面文字色"
-  transparency: "背景主題透明度"
+  transparency: "背景透明度"
   corner_radius: "圓角半徑"
   translucency_method: "半透明方式"
   translucency_none: "關閉"
@@ -296,25 +329,25 @@ theme_editor:
 
 tl_update_dialog: 
   title: "有可用的更新"
-  content: "有可用的更新 (%{size})，是否要下載？"
+  content: "有新的翻譯更新可用 (%{size})，是否下載？"
   content_zip_warning: "有新的翻譯更新可用（%{changed_size}）。此更新將改為下載完整的封存檔（%{download_size}）。"
   title_mod: "有可用的附加元件更新"
-  content_mod: "有可用的翻譯附加元件更新 (%{size})，是否要下載？"
+  content_mod: "有新的翻譯附加元件更新可用 (%{size})，是否下載？"
 
 update_prompt_dialog: 
-  title: "有可用的更新"
+  title: "有新版本可用"
   content: |
-    目前有可用的更新 (%{version})，是否要安裝？
+    目前有可用的 Hachimi 更新 (%{version})，是否要安裝？
     遊戲將重新啟動以套用更新內容。
   android_content: |
-    檢測到 Hachimi Edge 的新版本 (%{version})。是否更新？
+    偵測到 Hachimi Edge 的新版本 (%{version})。是否更新？
     點擊「是」將跳轉至 UmaPatcher Edge，在其中重新為當前遊戲補丁以更新 Hachimi。
-    (無需重新下載完整遊戲文件或 APK，重新為當前遊戲版本的 APK 補丁並安裝即可，UmaPatcher Edge 將自動下載最新版本的 Hachimi Edge。)
+    (無需重新下載完整遊戲檔案或 APK，重新為當前遊戲版本的 APK 補丁並安裝即可，UmaPatcher Edge 將自動下載最新版本的 Hachimi Edge。)
 
 
 updating_dialog: 
   title: "更新中"
-  content: "正在下載更新，遊戲將會在稍後重啟…"
+  content: "正在下載更新，遊戲即將重啟..."
 
 steam_overlay_conflict_dialog: 
   title: "注意"
@@ -324,6 +357,7 @@ steam_overlay_conflict_dialog:
     如果無法進行購買，請按「是」以暫時停用 Hachimi GUI 並關閉遊戲。
     下次啟動遊戲時，Hachimi GUI 將被停用，此時您可以正常進行購買。
     購買完成後，請重新啟動遊戲以重新啟用 Hachimi GUI。
+
 key_names: 
   left: "左方向鍵"
   right: "右方向鍵"
@@ -335,11 +369,11 @@ key_names:
   end: "End"
   page_up: "Page Up"
   page_down: "Page Down"
-  escape: "Escape"
+  escape: "Esc"
   tab: "Tab"
   enter: "Enter"
-  space: "空格"
-  backspace: "退格"
+  space: "空白鍵"
+  backspace: "Backspace"
   clear: "清除"
   pause: "暫停"
   caps_lock: "Caps Lock"
@@ -375,7 +409,7 @@ key_names:
   volume_up: "音量加"
   volume_down: "音量減"
   copy: "複製"
-  cut: "剪切"
+  cut: "剪下"
   paste: "貼上"
   semicolon: "分號"
   comma: "逗號"
@@ -385,7 +419,116 @@ key_names:
   right_bracket: "]"
   grave: "反引號"
   minus: "減號"
-  period: "點"
+  period: "句點"
   plus: "加號"
   equals: "等號"
   unknown: "按鍵 %{code}"
+
+free_camera:
+  enable: "啟用自由視角"
+  settings_title: "自由視角設定"
+  section_general: "一般"
+  section_live: "Live 劇場"
+  section_race: "比賽"
+  section_keybinds: "Windows 按鍵綁定"
+  remove_camera_effects: "移除鏡頭效果"
+  live_remove_screen_effects: "去除螢幕光效"
+  live_disable_character_teleport: "停用角色瞬移"
+  live_force_all_characters_visible: "使所有角色始終可見"
+  show_overlay: "顯示切換提示"
+  selfie_use_head_transform: "跟隨角色自拍棒模式"
+  mode: "模式"
+  mode_free: "自由移動"
+  mode_first_person: "第一人稱"
+  mode_selfie_stick: "跟隨角色"
+  live_move_step: "Live 移動步長"
+  race_move_step: "比賽移動步長"
+  look_step: "視角步長"
+  mouse_speed: "滑鼠速度"
+  live_fov: "Live 視野"
+  race_fov: "比賽視野"
+  gamepad_deadzone: "手把死區"
+  gamepad_move_speed: "手把移動速度"
+  gamepad_look_speed: "手把視角速度"
+  live_target_position: "Live 目標位置"
+  live_target_part: "Live 目標部位"
+  live_selfie_horizontal_stabilization: "Live 跟隨角色水平防抖範圍"
+  live_selfie_vertical_stabilization: "Live 跟隨角色垂直防抖範圍"
+  live_follow_offset: "Live 跟隨偏移"
+  live_follow_lookat_offset: "Live 注視偏移"
+  live_follow_smooth: "平滑 Live 跟隨"
+  live_follow_smooth_lookat_step: "Live 注視平滑"
+  live_follow_smooth_pos_step: "Live 位置平滑"
+  live_first_person_offset: "Live 第一人稱偏移"
+  race_target_index: "比賽目標編號（-1 = 自動）"
+  race_follow_offset: "比賽跟隨偏移"
+  race_follow_distance: "比賽跟隨距離"
+  race_first_person_lookat_offset: "比賽注視偏移"
+  overlay_mode: "模式：%{mode}"
+  overlay_target: "目標：%{target}"
+  overlay_part: "部位：%{part}"
+  target_auto: "自動"
+  target_gate: "閘位 %{index}"
+  key_move_forward: "向前移動"
+  key_move_back: "向後移動"
+  key_move_left: "向左移動"
+  key_move_right: "向右移動"
+  key_move_down: "向下移動"
+  key_move_up: "向上移動"
+  key_look_up: "向上看"
+  key_look_down: "向下看"
+  key_look_left: "向左看"
+  key_look_right: "向右看"
+  key_fov_increase: "增大視野"
+  key_fov_decrease: "減小視野"
+  key_follow_offset_up: "跟隨偏移向上"
+  key_follow_offset_down: "跟隨偏移向下"
+  key_follow_offset_left: "跟隨偏移向左"
+  key_follow_offset_right: "跟隨偏移向右"
+  key_target_previous: "上一個目標"
+  key_target_next: "下一個目標"
+  key_part_previous: "上一個 Live 部位"
+  key_part_next: "下一個 Live 部位"
+  key_reset: "重設"
+  key_cycle_mode: "切換模式"
+  key_reverse: "反向"
+  cheatsheet_title: "自由視角快速指南"
+  cheatsheet_contents: |
+    # 自由視角快速指南
+    本功能僅在 **比賽** 或 **Live 舞台** 中生效。
+
+    預設跟隨部位為 **頭部**。
+
+    在比賽中預設跟隨 **1號閘位**。
+
+    ## 滑鼠操作
+    * **按住右鍵並拖曳：** 旋轉視角
+    * **滾輪向上 / 向下：** 調整 FOV
+
+    ---
+
+    ## 手把操作 (Xbox / PlayStation)
+
+    ### **移動與視角**
+    * **左搖桿：** 移動
+    * **右搖桿：** 旋轉視角
+    * **右扳機鍵 (RT / R2)：** 上升
+    * **左扳機鍵 (LT / L2)：** 下降
+    * **右側肩鍵 (RB / R1)：** 減小 FOV
+    * **左側肩鍵 (LB / L1)：** 增大 FOV
+
+    ---
+
+    ### 功能按鍵
+    * **Y鍵** (三角)：重設相機位置
+    * **X鍵** (方形)：切換相機模式
+    * **B鍵** (圓圈)：翻轉跟隨視角方向 *(前 <-> 後，僅跟隨角色模式)*
+    * **A鍵** (交叉)：暫停 Live
+
+    ---
+
+    ### 十字鍵控制 (自由移動模式下不可用)
+    * **十字鍵-左：** 上一個目標 *(僅跟隨角色與第一人稱)*
+    * **十字鍵-右：** 下一個目標 *(僅跟隨角色與第一人稱)*
+    * **十字鍵-上：** 下一個部位 *(僅跟隨角色)*
+    * **十字鍵-下：** 上一個部位 *(僅跟隨角色)*

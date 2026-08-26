@@ -18,6 +18,8 @@ previous: "Anterior"
 yes: "Sim"
 no: "Não"
 ok: "OK"
+remove: "Remover"
+save_changes: "Salvar mudanças?"
 retry: "Tentar novamente"
 bind_key: "Definir atalho"
 set_keybind: 
@@ -37,6 +39,21 @@ soft_restart_confirm_content: "Você tem certeza que deseja realizar um soft-res
 in_game_browser_confirm_content: "Você tem certeza que deseja abrir o navegador do jogo?"
 browser_dialog_title: "Navegador"
 
+change_translation_repo:
+  title: "Alterar repositório de tradução"
+  no_repos: "Você ainda não baixou nenhum repositório de tradução."
+  browse_repositories: "Ver repositórios"
+  active: "Ativo"
+  available: "Disponível"
+  confirm_remove: "Você tem certeza que deseja remover \"%{name}\"?"
+  cannot_remove_active: "Você não pode remover um repositório que está ativo. Troque para outro repositório antes."
+  removing: "Removendo repositório de tradução..."
+  remove_in_progress: "Não foi possível remover o repositório de tradução. Outro repositório já está sendo removido."
+
+add_translation_repo:
+  title: "Adicionar repositório de tradução"
+  select_translation_repo: "Selecione um repositório de tradução:"
+
 menu: 
   check_for_updates: "\ue923 Buscar atualizações"
   fps_text: "FPS: %{fps}"
@@ -48,6 +65,7 @@ menu:
   open_config_editor: "\ue8b9 Abrir editor de configurações"
   reload_config: "\ue5d5 Recarregar configurações"
   open_first_time_setup: "\ue869 Abrir configuração inicial"
+  change_translation_repo: "\ue8da Alterar repositório de tradução"
   graphics_heading: "\ueb97 Gráficos"
   fps_label: "FPS"
   vsync_label: "VSync"
@@ -68,10 +86,15 @@ menu:
 
 notification: 
   saved_localize_dump: "Exportado em localize_dump.json"
+  freeform_window_disabled_landscape: "Janela livre foi desabilitada porque o modo paisagem está ativo."
+  free_camera_unavailable_live: "A Câmera Livre está indisponível neste Live devido a um problema conhecido. Ela foi desabilitada para este Live."
   config_reloaded: "Configurações recarregadas."
   config_saved: "Configurações salvas."
+  recommended_ui_scale_applied: "Escala de UI recomendada aplicada."
   config_error: "As configurações estão corrompidas. Usando valores padrão..."
   localized_data_reloaded: "Tradução recarregada."
+  tl_repo_changed: "O repositório de tradução mudou. Dados de tradução recarregados."
+  tl_repo_folder_missing: "A pasta com os dados de tradução não foi encontrada. Por favor, busque atualizações de tradução para restaurá-la."
   checking_for_tl_updates: "Buscando atualizações de tradução..."
   checking_for_addon_updates: "Buscando atualizações de addon..."
   no_tl_updates: "Nenhuma atualização de tradução encontrada."
@@ -215,11 +238,19 @@ config_editor:
   hide_ingame_ui_hotkey: "Atalho para esconder a UI do jogo"
   hide_ingame_ui_hotkey_info: >-
     Esta opção permite que um atalho seja utilizado para alternar a visualização da UI do jogo.
-    No Android, você pode pressionar rapidamente duas vezes o botão de volume para cima, ou tocar três vezes rapidamente no canto superior direito da tela.
+    No Android, você pode tocar três vezes rapidamente no canto superior direito da tela.
     No PC/Android com um teclado conectado, você pode pressionar a tecla Insert ou definir outra tecla nas configurações.
   unlock_live_chara: "Desbloquear personagens/músicas do Live Theater"
   live_slider_always_show: "Sempre mostrar controle do Live"
   live_playback_loop: "Repetir apresentações ao vivo"
+  trainer_live_landscape: "Modo paisagem no show da música MeniShuki"
+  force_orientation_mode: "Forçar modo de orientação"
+  recommended_ui_scale: "Aplicar escala de UI recomendada"
+  freeform_window: "Janela livre"
+  freeform_ui_scale_auto: "Escala automática da UI na janela livre"
+  freeform_ui_scale_auto_ratio: "Proporção da escala automática da UI"
+  free_camera: "Câmera livre"
+  taskbar_show_progress_on_schedule_book: "Mostrar progresso do calendário na barra de tarefas"
   champions_live_show_text: "Substituir texto do Champions Meeting Live"
   champions_live_resource_id: "Título do Champions Meeting"
   champions_live_year: "Ano do Champions Meeting"
@@ -393,3 +424,111 @@ key_names:
   plus: "Mais"
   equals: "Igual"
   unknown: "Tecla %{code}"
+free_camera:
+  enable: "Ativar Câmera Livre"
+  settings_title: "Configurações da Câmera Livre"
+  section_general: "Geral"
+  section_live: "Show"
+  section_race: "Corrida"
+  section_keybinds: "Atalhos do Windows"
+  remove_camera_effects: "Desligar efeitos da câmera"
+  live_remove_screen_effects: "Desligar efeitos da tela"
+  live_disable_character_teleport: "Desligar teleporte de personagens"
+  live_force_all_characters_visible: "Sempre mostrar todas as personagens"
+  show_overlay: "Mostrar aviso de troca de câmera"
+  selfie_use_head_transform: "Usar bastão de selfie no modo \"Acompanhar Personagem\""
+  mode: "Modo"
+  mode_free: "Movimento livre"
+  mode_first_person: "Primeira pessoa"
+  mode_selfie_stick: "Acompanhar Personagem"
+  live_move_step: "Velocidade de movimento (Show)"
+  race_move_step: "Velocidade de movimento (Corrida)"
+  look_step: "Velocidade de rotação da câmera"
+  mouse_speed: "Sensibilidade do mouse"
+  live_fov: "Campo de visão do show"
+  race_fov: "Campo de visão da corrida"
+  gamepad_deadzone: "Zona morta do joystick"
+  gamepad_move_speed: "Velocidade do movimento no gamepad"
+  gamepad_look_speed: "Velocidade da câmera no gamepad"
+  live_target_position: "Posição alvo"
+  live_target_part: "Parte do corpo alvo"
+  live_selfie_horizontal_stabilization: "Zona morta horizontal da câmera de acompanhamento"
+  live_selfie_vertical_stabilization: "Zona morta vertical da câmera de acompanhamento"
+  live_follow_offset: "Deslocamento do acompanhamento"
+  live_follow_lookat_offset: "Deslocamento do ponto de foco"
+  live_follow_smooth: "Suavização da câmera de acompanhamento"
+  live_follow_smooth_lookat_step: "Suavização da rotação da câmera de acompanhamento"
+  live_follow_smooth_pos_step: "Suavização da posição da câmera de acompanhamento"
+  live_first_person_offset: "Deslocamento da visão em primeira pessoa"
+  race_target_index: "Índice do alvo da corrida (-1 = automático)"
+  race_follow_offset: "Deslocamento da câmera de acompanhamento na corrida"
+  race_follow_distance: "Distância da câmera de acompanhamento na corrida"
+  race_first_person_lookat_offset: "Deslocamento da visão em primeira pessoa na corrida"
+  overlay_mode: "Modo: %{mode}"
+  overlay_target: "Alvo: %{target}"
+  overlay_part: "Parte do corpo: %{part}"
+  target_auto: "Automático"
+  target_gate: "Portão %{index}"
+  key_move_forward: "Mover para frente"
+  key_move_back: "Mover para trás"
+  key_move_left: "Mover para esquerda"
+  key_move_right: "Mover para direita"
+  key_move_down: "Mover para baixo"
+  key_move_up: "Mover para cima"
+  key_look_up: "Olhar para cima"
+  key_look_down: "Olhar para baixo"
+  key_look_left: "Olhar para esquerda"
+  key_look_right: "Olhar para direita"
+  key_fov_increase: "Aumentar campo de visão"
+  key_fov_decrease: "Diminuir campo de visão"
+  key_follow_offset_up: "Mover câmera de acompanhamento para cima"
+  key_follow_offset_down: "Mover câmera de acompanhamento para baixo"
+  key_follow_offset_left: "Mover câmera de acompanhamento para esquerda"
+  key_follow_offset_right: "Mover câmera de acompanhamento para direita"
+  key_target_previous: "Alvo anterior"
+  key_target_next: "Próximo alvo"
+  key_part_previous: "Parte do corpo anterior"
+  key_part_next: "Próxima parte do corpo"
+  key_reset: "Redefinir posição da câmera"
+  key_cycle_mode: "Alternar modo"
+  key_reverse: "Inverter perspectiva da câmera de acompanhamento (frente <-> trás)"
+  cheatsheet_title: "Guia rápido da Câmera Livre"
+  cheatsheet_contents: |
+    # Guia rápido da Câmera Livre
+    Este recurso só funciona em **Corridas** ou **Shows da Vitória**.
+
+    A parte do corpo padrão é **Rosto**.
+
+    O alvo padrão é **Place01**.
+
+    ## Controles do mouse
+    * **Segurar botão direito + arrastar:** Olhar ao redor
+    * **Roda do mouse para cima / para baixo:** Aumentar / diminuir campo de visão
+
+    ---
+
+    ## Controles do gamepad (Xbox / PlayStation)
+
+    ### **Movimento e ângulo da câmera**
+    * **Joystick esquerdo:** Mover para esquerda / direita / frente / trás
+    * **Joystick direito:** Olhar para esquerda / direita / cima / baixo
+    * **Gatilho direito (RT / R2):** Mover para cima
+    * **Gatilho esquerdo (LT / L2):** Mover para baixo
+    * **Botão superior direito (RB / R1):** Diminuir campo de visão
+    * **Botão superior esquerdo (LB / L1):** Aumentar campo de visão
+
+    ---
+
+    ### Botões de ação
+    * **Y** (Triângulo): Redefinir posição da câmera
+    * **X** (Quadrado): Alternar modo da câmera
+    * **B** (Círculo): Inverter perspectiva da câmera de acompanhamento *(frente <-> trás, apenas Câmera de Acompanhamento)*
+    * **A** (X): Pausar / retomar show
+
+    ---
+
+    ### Controles do direcional (não disponível no Movimento Livre)
+    * **Direcional direito:** Próximo alvo *(Câmera de Acompanhamento e Primeira Pessoa)*
+    * **Direcional esquerdo:** Alvo anterior *(Câmera de Acompanhamento e Primeira Pessoa)*
+    * **Direcional para cima:** Próxima parte do corpo *(apenas Câmera de Acompanhamento)*
+    * **Direcional para baixo:** Parte do corpo anterior *(apenas Câmera de Acompanhamento)*

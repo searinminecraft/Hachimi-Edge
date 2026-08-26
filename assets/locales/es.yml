@@ -18,6 +18,8 @@ previous: "Atrás"
 yes: "Sí"
 no: "No"
 ok: "OK"
+remove: "Quitar"
+save_changes: "¿Guardar los cambios?"
 retry: "Reintentar"
 bind_key: "Asignar tecla"
 set_keybind: 
@@ -37,6 +39,21 @@ soft_restart_confirm_content: "¿Seguro que quieres realizar un reinicio suave d
 in_game_browser_confirm_content: "¿Seguro que quieres abrir el navegador del juego?"
 browser_dialog_title: "Navegador"
 
+change_translation_repo:
+  title: "Cambiar repositorio de traducción"
+  no_repos: "Aún no hay repositorios de traducción descargados."
+  browse_repositories: "Ver repositorios"
+  active: "Activo"
+  available: "Disponible"
+  confirm_remove: "¿Está seguro de querer eliminar \"%{name}\"?"
+  cannot_remove_active: "No es posible eliminar el repositorio activo si no lo cambias a otro primero."
+  removing: "Eliminando repositorio..."
+  remove_in_progress: "No es posible eliminar el repositorio mientras se encuentre otro proceso de eliminación en curso."
+
+add_translation_repo:
+  title: "Añadir repositorio de traducción"
+  select_translation_repo: "Selecciona un repositorio:"
+
 menu: 
   check_for_updates: "\ue923 Buscar actualizaciones"
   fps_text: "FPS: %{fps}"
@@ -48,6 +65,7 @@ menu:
   open_config_editor: "\ue8b9 Editor de configuración"
   reload_config: "\ue5d5 Recargar configuración"
   open_first_time_setup: "\ue869 Abrir instalación inicial"
+  change_translation_repo: "\ue8da Cambiar repositorio de traducción"
   graphics_heading: "\ueb97 Gráficos"
   fps_label: "FPS"
   vsync_label: "VSync"
@@ -72,6 +90,8 @@ notification:
   config_saved: "Configuración guardada."
   config_error: "La configuración está corrupta. Usando valores por defecto..."
   localized_data_reloaded: "Localización recargada."
+  tl_repo_changed: "Repositorio cambiado. Se han recargado los datos de localización."
+  tl_repo_folder_missing: "No existe la carpeta de traducción. Busca actualizaciones para restaurarla."
   checking_for_tl_updates: "Buscando actualizaciones de traducción..."
   checking_for_addon_updates: "Buscando actualizaciones de addon..."
   no_tl_updates: "No hay actualizaciones."
@@ -216,7 +236,7 @@ config_editor:
   hide_ingame_ui_hotkey: "Atajo para ocultar UI del juego"
   hide_ingame_ui_hotkey_info: >-
     Esta opción te permite asignar una tecla para alternar el UI del juego.
-    En Android, tendrás que pulsar dos veces el botón de Volumen +, ó tocando tres veces la parte superior derecha de la pantalla.
+    En Android, puedes tocar tres veces la parte superior derecha de la pantalla.
     En PC/Android con teclado será la tecla Insertar y podrá ser cambiada desde el GUI o en la configuración.
   unlock_live_chara: "Desbloquear personajes/canciones del Live Theater"
   live_slider_always_show: "Mostrar siempre el control de Live"

@@ -18,6 +18,8 @@ previous: "Kembali"
 yes: "Ya"
 no: "Tidak"
 ok: "OK"
+remove: "Hapus"
+save_changes: "Simpan perubahan?"
 retry: "Ulangi"
 bind_key: "Atur tombol"
 set_keybind: 
@@ -37,6 +39,21 @@ soft_restart_confirm_content: "Apa kamu yakin ingin memulai ulang ringan game?"
 in_game_browser_confirm_content: "Apa kamu yakin ingin buka browser dalam game?"
 browser_dialog_title: "Browser"
 
+change_translation_repo:
+  title: "Ubah Repo Translasi"
+  no_repos: "Belum ada repo translasi yang diunduh."
+  browse_repositories: "Cari repositori"
+  active: "Aktif"
+  available: "Tersedia"
+  confirm_remove: "apa kamu yakin ingin menghapus \"%{name}\"?"
+  cannot_remove_active: "Tidak bisa menghapus repo yang sedang aktif. Ganti ke repo lain terlebih dahulu."
+  removing: "Menghapus repo translasi..."
+  remove_in_progress: "Tidak bisa menghapus repo translasi. Penghapusan lain sedang berlangsung."
+
+add_translation_repo:
+  title: "Tambah Repositori Translasi"
+  select_translation_repo: "Pilih repositori translasi:"
+
 menu: 
   check_for_updates: "\ue923 Cek pembaruan"
   fps_text: "FPS: %{fps}"
@@ -48,6 +65,7 @@ menu:
   open_config_editor: "\ue8b9 Buka editor konfig"
   reload_config: "\ue5d5 Muat ulang konfig"
   open_first_time_setup: "\ue869 Setup pertama kali"
+  change_translation_repo: "\ue8da Ubah Repo Translasi"
   graphics_heading: "\ueb97 Grafis"
   fps_label: "FPS"
   vsync_label: "VSync"
@@ -72,6 +90,8 @@ notification:
   config_saved: "Konfigurasi tersimpan."
   config_error: "Konfigurasi rusak. Menggunakan nilai default..."
   localized_data_reloaded: "Data lokalisasi dimuat ulang."
+  tl_repo_changed: "Repositori translasi diubah. Data lokalisasi dimuat ulang."
+  tl_repo_folder_missing: "Folder data translasi hilang. Silakan cek pembaruan untuk memperbaiki."
   checking_for_tl_updates: "Memeriksa pembaruan translasi..."
   checking_for_addon_updates: "Memeriksa pembaruan addon..."
   no_tl_updates: "Tidak ada pembaruan translasi."
@@ -214,7 +234,7 @@ config_editor:
   hide_ingame_ui_hotkey: "Sembunyikan hotkey UI dalam game"
   hide_ingame_ui_hotkey_info: >-
     Opsi ini memungkinkan tombol pintas untuk mengaktifkan/menonaktifkan UI di dalam game.
-    Untuk Android, Anda perlu mengetuk dua kali tombol Volume Atas, atau mengetuk tiga kali di bagian kanan atas layar.
+    Untuk Android, Anda dapat mengetuk tiga kali di bagian kanan atas layar.
     Untuk PC/Android dengan keyboard, tombolnya adalah Insert dan dapat dikonfigurasi di GUI atau config.
   unlock_live_chara: "Buka Kunci Karakter/Lagu Live Theater"
   live_slider_always_show: "Selalu Tampilkan Kontrol Live"

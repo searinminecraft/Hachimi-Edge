@@ -18,6 +18,8 @@ previous: "Назад"
 yes: "Да"
 no: "Нет"
 ok: "ОК"
+remove: "Удалить"
+save_changes: "Сохранить изменения?"
 retry: "Повторить"
 bind_key: "Назначить кнопку"
 set_keybind:
@@ -37,6 +39,21 @@ soft_restart_confirm_content: "Вы уверены, что хотите выпо
 in_game_browser_confirm_content: "Вы уверены, что хотите открыть внутриигровой браузер?"
 browser_dialog_title: "Браузер"
 
+change_translation_repo:
+  title: "Сменить репозиторий переводов"
+  no_repos: "Ещё нет загруженных репозиториев."
+  browse_repositories: "Просмотреть репозитории"
+  active: "Активен"
+  available: "Доступен"
+  confirm_remove: "Вы уверены, что хотите удалить \"%{name}\"?"
+  cannot_remove_active: "Невозможно удалить активный репозиторий. Сначала переключитесь на другой."
+  removing: "Удаление репозитория..."
+  remove_in_progress: "Невозможно удалить репозиторий. Сейчас уже удаляется другой."
+
+add_translation_repo:
+  title: "Добавить репозиторий переводов"
+  select_translation_repo: "Выберите репозиторий переводов:"
+
 menu:
   check_for_updates: "\ue923 Проверить обновления"
   fps_text: "FPS: %{fps}"
@@ -48,6 +65,7 @@ menu:
   open_config_editor: "\ue8b9 Открыть настройки"
   reload_config: "\ue5d5 Перезагрузить настройки"
   open_first_time_setup: "\ue869 Открыть первоначальную настройку"
+  change_translation_repo: "\ue8da Сменить репозиторий переводов"
   graphics_heading: "\ueb97 Графика"
   fps_label: "FPS"
   vsync_label: "VSync"
@@ -68,10 +86,15 @@ menu:
 
 notification:
   saved_localize_dump: "Сохранено в localize_dump.json"
+  freeform_window_disabled_landscape: "Свободная форма окна отключена, поскольку выбран альбомный режим."
+  free_camera_unavailable_live: "Свободная камера недоступна на этом концерте из-за известной проблемы. Для этого концерта она будет отключена."
   config_reloaded: "Настройки перезагружены."
   config_saved: "Настройки сохранены."
+  recommended_ui_scale_applied: "Применён рекомендуемый масштаб интерфейса"
   config_error: "Файл настроек повреждён. Возврат к значениям по умолчанию..."
   localized_data_reloaded: "Данные локализации перезагружены."
+  tl_repo_changed: "Репозиторий переводов изменился. Данные локализации перезагружены."
+  tl_repo_folder_missing: "Папка данных переводов отсутствует. Для восстановления переводов, пожалуйста, проверьте наличие обновлений."
   checking_for_tl_updates: "Проверка обновлений переводов..."
   checking_for_addon_updates: "Проверка обновлений аддонов..."
   no_tl_updates: "Нет доступных обновлений переводов."
@@ -212,11 +235,19 @@ config_editor:
   hide_ingame_ui_hotkey: "Включить кнопку скрытия интерфейса игры"
   hide_ingame_ui_hotkey_info: >-
     Эта опция позволяет переключать видимость внутриигрового интерфейса через горячую клавишу.
-    На Android вы можете дважды нажать клавишу «Громкость вверх» или трижды нажать в правом верхнем углу экрана.
+    На Android вы можете трижды нажать в правом верхнем углу экрана.
     На PC или Android с клавиатурой по умолчанию это клавиша Insert, и её можно сменить в настройках.
   unlock_live_chara: "Разблокировать персонажей/песни в Live-театре"
   live_slider_always_show: "Всегда показывать ползунок концертов"
   live_playback_loop: "Зацикливать концерты"
+  trainer_live_landscape: "Альбомный режим на концерте MeniShuki"
+  force_orientation_mode: "Принудительный режим ориентации"
+  recommended_ui_scale: "Применить рекомендуемый масштаб интерфейса"
+  freeform_window: "Свободная форма окна"
+  freeform_ui_scale_auto: "Авто-масштабирование интерфейса в свободной форме"
+  freeform_ui_scale_auto_ratio: "Коэффициент авто-масштабирования интерфейса"
+  free_camera: "Свободная камера"
+  taskbar_show_progress_on_schedule_book: "Прогресс Журнала тренера на панели задач"
   champions_live_show_text: "Заменить надпись концерта Встречи Чемпионов"
   champions_live_resource_id: "Название Встречи Чемпионов"
   champions_live_year: "Год Встречи Чемпионов"
@@ -260,6 +291,8 @@ config_editor:
   hide_ingame_ui_hotkey_bind: "Клавиша скрытия интерфейса игры"
   ui_loading_show_orientation_guide: "Показывать подсказку ориентации при загрузке"
   full_screen_res: "Пользовательское разрешение полного экрана"
+  landscape: "Альбомный"
+  portrait: "Портретный"
   localized_data_dir: "Папка локализованных данных"
   hook_libc_dlopen: "Принудительный хук libc dlopen (Waydroid/эмулятор)"
   keep_screen_on: "Не выключать экран"
@@ -383,3 +416,111 @@ key_names:
   plus: "+"
   equals: "="
   unknown: "Кнопка %{code}"
+free_camera:
+  enable: "Включить свободную камеру"
+  settings_title: "Настройки свободной камеры"
+  section_general: "Основные"
+  section_live: "Концерты"
+  section_race: "Забеги"
+  section_keybinds: "Клавиши Windows"
+  remove_camera_effects: "Убрать эффекты камеры"
+  live_remove_screen_effects: "Убрать эффекты экрана"
+  live_disable_character_teleport: "Отключить телепортацию персонажей"
+  live_force_all_characters_visible: "Всегда показывать всех персонажей"
+  show_overlay: "Показывать оверлей при переключении"
+  selfie_use_head_transform: "Использовать селфи-палку при следовании"
+  mode: "Режим"
+  mode_free: "Свободное перемещение"
+  mode_first_person: "От первого лица"
+  mode_selfie_stick: "Следовать за персонажем"
+  live_move_step: "Шаг движения на концертах"
+  race_move_step: "Шаг движения в забегах"
+  look_step: "Шаг обзора"
+  mouse_speed: "Скорость мыши"
+  live_fov: "FOV на концертах"
+  race_fov: "FOV в забегах"
+  gamepad_deadzone: "Мёртвая зона геймпада"
+  gamepad_move_speed: "Скорость движения на геймпаде"
+  gamepad_look_speed: "Скорость обзора на геймпаде"
+  live_target_position: "Следуемая позиция"
+  live_target_part: "Следуемая часть тела"
+  live_selfie_horizontal_stabilization: "Горизонтальная мёртвая зона следования"
+  live_selfie_vertical_stabilization: "Вертикальная мёртвая зона следования"
+  live_follow_offset: "Смещение камеры следования"
+  live_follow_lookat_offset: "Смещение осмотра"
+  live_follow_smooth: "Плавное следование"
+  live_follow_smooth_lookat_step: "Сглаживание осмотра"
+  live_follow_smooth_pos_step: "Сглаживание позиции"
+  live_first_person_offset: "Смещение камеры от первого лица"
+  race_target_index: "Индекс цели в забегах (-1 = авто)"
+  race_follow_offset: "Смещение камеры следования"
+  race_follow_distance: "Дистанция следования"
+  race_first_person_lookat_offset: "Смещение осмотра"
+  overlay_mode: "Режим: %{mode}"
+  overlay_target: "Цель: %{target}"
+  overlay_part: "Часть тела: %{part}"
+  target_auto: "Авто"
+  target_gate: "Ворота %{index}"
+  key_move_forward: "Двигаться вперёд"
+  key_move_back: "Двигаться назад"
+  key_move_left: "Двигаться влево"
+  key_move_right: "Двигаться вправо"
+  key_move_down: "Двигаться вниз"
+  key_move_up: "Двигаться вверх"
+  key_look_up: "Повернуть вверх"
+  key_look_down: "Повернуть вниз"
+  key_look_left: "Повернуть влево"
+  key_look_right: "Повернуть вправо"
+  key_fov_increase: "Увеличить FOV"
+  key_fov_decrease: "Уменьшить FOV"
+  key_follow_offset_up: "Сместить камеру следования вверх"
+  key_follow_offset_down: "Сместить камеру следования вниз"
+  key_follow_offset_left: "Сместить камеру следования влево"
+  key_follow_offset_right: "Сместить камеру следования вправо"
+  key_target_previous: "Предыдущая цель"
+  key_target_next: "Следующая цель"
+  key_part_previous: "Предыдущая часть тела"
+  key_part_next: "Следующая часть тела"
+  key_reset: "Сбросить положение камеры"
+  key_cycle_mode: "Переключить режим"
+  key_reverse: "Перевернуть ракурс камеры следования (вперёд <-> назад)"
+  cheatsheet_title: "Памятка по свободной камере"
+  cheatsheet_contents: |
+    # Памятка по свободной камере
+    Эта функция работает только в **забегах** или **концертах**.
+
+    Следуемая часть тела по умолчанию - **Face** (лицо).
+
+    Следуемая позиция по умолчанию - **Place01** (1-е место).
+
+    ## Управление мышью
+    * **Зажать ПКМ и передвигать:** Осмотреться
+    * **Колёсико вверх/вниз:** Увеличить/уменьшить FOV
+
+    ---
+
+    ## Управление геймпадом (Xbox / PlayStation)
+
+    ### **Движение и ракурс камеры**
+    * **Левый стик:** Двигаться влево / вправо / вперёд / назад
+    * **Правый стик:** Повернуть влево / вправо / вверх / вниз
+    * **Правый триггер (RT / R2):** Двигаться вверх
+    * **Левый триггер (LT / L2):** Двигаться вниз
+    * **Правый бампер (RB / R1):** Уменьшить FOV
+    * **Левый бампер (LB / L1):** Увеличить FOV
+
+    ---
+
+    ### Кнопки действий
+    * **Y** (Треугольник): Сбросить положение камеры
+    * **X** (Квадрат): Переключить режим камеры
+    * **B** (Круг): Перевернуть ракурс камеры *(спереди <-> сзади, только при следовании)*
+    * **A** (Крест): Пауза / продолжение концерта
+
+    ---
+
+    ### Управление крестовиной (недоступно при свободном перемещении)
+    * **Вправо:** Следующая цель *(при следовании и от первого лица)*
+    * **Влево:** Предыдущая цель *(при следовании и от первого лица)*
+    * **Вверх:** Следующая часть тела *(только при следовании)*
+    * **Вниз:** Предыдущая часть тела *(только при следовании)*
