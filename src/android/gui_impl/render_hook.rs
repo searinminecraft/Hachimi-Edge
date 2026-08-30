@@ -67,6 +67,10 @@ extern "C" fn eglSwapBuffers(display: EGLDisplay, surface: EGLSurface) -> EGLBoo
     let output = gui.run();
 
     let clipped_primitives = gui.context.tessellate(output.shapes, output.pixels_per_point);
+    if clipped_primitives.is_empty() && output.textures_delta.is_empty() {
+        return orig_fn(display, surface);
+    }
+
     let dimensions: [u32; 2] = [width as u32, height as u32];
 
     // Backup state

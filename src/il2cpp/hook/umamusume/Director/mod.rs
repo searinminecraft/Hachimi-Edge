@@ -58,6 +58,15 @@ pub fn is_live_paused() -> bool {
     IS_LIVE_PAUSED.load(Ordering::Acquire)
 }
 
+def_field_value_accessors!(get get__state, _STATE_FIELD, i32);
+
+pub fn is_live_playing() -> bool {
+    let director = instance();
+    if director.is_null() { return false; }
+    // Director.State LivePlay = 6.
+    get__state(director) == 6
+}
+
 static mut CLASS: *mut Il2CppClass = 0 as _;
 pub fn class() -> *mut Il2CppClass {
     unsafe { CLASS }
@@ -465,6 +474,11 @@ pub fn is_trainer_live() -> bool {
     music_id == 1156
 }
 
+fn is_trainer_live_director(director: *mut Il2CppObject) -> bool {
+    if director.is_null() { return false; }
+    GetPlaySongId(director) == 1156
+}
+
 type AwakeFn = extern "C" fn(this: *mut Il2CppObject);
 extern "C" fn Awake(this: *mut Il2CppObject) {
     get_orig_fn!(Awake, AwakeFn)(this);
@@ -476,7 +490,7 @@ extern "C" fn Awake(this: *mut Il2CppObject) {
     #[cfg(target_os = "windows")]
     update_free_camera_live_availability(this);
 
-    if is_trainer_live() && Hachimi::instance().config.load().trainer_live_landscape {
+    if is_trainer_live_director(this) && Hachimi::instance().config.load().trainer_live_landscape {
         set_displayMode(this, DisplayMode::Landscape);
     }
 
@@ -525,11 +539,25 @@ extern "C" fn AlterUpdate(this: *mut Il2CppObject, delta_time: f32, is_update_de
     free_camera::begin_live_director_update();
     get_orig_fn!(AlterUpdate, AlterUpdateFn)(this, delta_time, is_update_delta_time);
 
+    if !free_camera::is_scene_enabled(CameraScene::Live)
+        && is_trainer_live_director(this)
+        && Hachimi::instance().config.load().trainer_live_landscape
+    {
+        let camera = get_MainCameraObject(this);
+        if !camera.is_null() {
+            Camera::set_fieldOfView(camera, 60.0);
+        }
+    }
+
     if Hachimi::instance().config.load().live_playback_loop {
         let current = get_LiveCurrentTime(this);
         let total = get_LiveTotalTime(this);
-        if total > 0.0 && current >= total - 0.1 {
+        if total > 0.0 && current >= total - 0.1
+            && crate::core::live_utils::should_loop_restart(current, total)
+        {
+            crate::core::live_utils::begin_live_drag();
             crate::core::live_utils::move_live_playback(0.0);
+            crate::core::live_utils::end_live_drag();
         }
     }
 
@@ -545,7 +573,7 @@ type SetupOrientationFn = extern "C" fn(this: *mut Il2CppObject, display_mode: D
 #[cfg(target_os = "windows")]
 extern "C" fn SetupOrientation(this: *mut Il2CppObject, display_mode: DisplayMode) {
     let config = Hachimi::instance().config.load();
-    let is_trainer = is_trainer_live() && config.trainer_live_landscape;
+    let is_trainer = is_trainer_live_director(this) && config.trainer_live_landscape;
     let mut target_display_mode = display_mode;
     if is_trainer || config.windows.freeform_window {
         if let Some((width, height)) = crate::windows::wnd_hook::get_client_size() {
@@ -581,6 +609,7 @@ pub fn init(umamusume: *const Il2CppImage) {
         GETPLAYSONGID_ADDR = get_method_addr(Director, c"GetPlaySongId", 0);
 
         _LIVECURRENTTIME_FIELD = get_field_from_name(Director, c"_liveCurrentTime");
+        _STATE_FIELD = get_field_from_name(Director, c"_state");
         _TRAINERCAMERAFOVRATE_FIELD = get_field_from_name(Director, c"_trainerCameraFovRate");
         _TRAINERCAMERAFOVRATESTART_FIELD = get_field_from_name(Director, c"_trainerCameraFovRateStart");
         _TRAINERCAMERATARGETCAMERA_FIELD = get_field_from_name(Director, c"_trainerCameraTargetCamera");

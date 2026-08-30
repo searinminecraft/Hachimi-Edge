@@ -574,12 +574,9 @@ impl Thread {
             None => { error!("create_delegate failed, callback not scheduled"); return; }
         };
 
-        info!("sync_ctx_post address = {:#x}", post_addr);
         let res = std::panic::catch_unwind(|| sync_ctx_post(sync_ctx, delegate, null_mut()));
         if res.is_err() {
             error!("sync_ctx_post panicked while invoking SynchronizationContext.Post");
-        } else {
-            info!("sync_ctx_post returned normally");
         }
     }
 

@@ -38,9 +38,18 @@ pub fn dump_msgpack(data: &[u8], suffix: &str) {
     }
 }
 
+#[inline]
+fn contains_bytes(haystack: &[u8], needle: &[u8]) -> bool {
+    if haystack.len() < needle.len() {
+        return false;
+    }
+    haystack.windows(needle.len()).any(|w| w == needle)
+}
+
 pub fn modify_request(data: &[u8]) -> Option<Vec<u8>> {
     let config = Hachimi::instance().config.load();
     if !config.unlock_live_chara { return None; }
+    if !contains_bytes(data, b"live_theater_save_info") { return None; }
 
     let mut cursor = std::io::Cursor::new(data);
     let mut val = match rmpv::decode::read_value(&mut cursor) {
@@ -74,6 +83,15 @@ pub fn modify_request(data: &[u8]) -> Option<Vec<u8>> {
 pub fn modify_response(data: &[u8]) -> Option<Vec<u8>> {
     let config = Hachimi::instance().config.load();
     if !config.unlock_live_chara { return None; }
+    if !contains_bytes(data, b"data") { return None; }
+    if !contains_bytes(data, b"chara_list")
+        && !contains_bytes(data, b"chara_profile_list")
+        && !contains_bytes(data, b"cloth_list")
+        && !contains_bytes(data, b"music_list")
+        && !contains_bytes(data, b"live_theater_save_info")
+    {
+        return None;
+    }
 
     let mut cursor = std::io::Cursor::new(data);
     let mut val = match rmpv::decode::read_value(&mut cursor) {

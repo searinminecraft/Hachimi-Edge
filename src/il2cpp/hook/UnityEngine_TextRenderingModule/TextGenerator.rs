@@ -130,22 +130,6 @@ extern "C" fn PopulateWithErrors(
         }
     }
 
-    let mut regex_replaced: Option<String> = None;
-    if new_str.is_none() && !localized_data.replace_rules.is_empty() {
-        let utf_str = unsafe { (*str_).as_utf16str() }.to_string();
-        for (re, replacement) in &localized_data.replace_rules {
-            if re.is_match(&utf_str) {
-                let replaced = re.replace_all(&utf_str, replacement.as_str()).into_owned();
-                regex_replaced = Some(replaced);
-                break;
-            }
-        }
-    }
-    if let Some(ref r) = regex_replaced {
-        new_str = Some(r);
-        has_template = r.contains('$');
-    }
-
     let config = hachimi.config.load();
 
     if text_settings.font_scale != 1.0 {
@@ -165,17 +149,22 @@ extern "C" fn PopulateWithErrors(
     }
     if force_wrap { settings.horizontalOverflow = 0; }
 
-    let path = get_hierarchy_path_with_fallback(context, this);
+    let mut cached_path: Option<String> = None;
+    macro_rules! get_path {
+        () => {
+            cached_path.get_or_insert_with(|| get_hierarchy_path_with_fallback(context, this)).as_str()
+        };
+    }
 
     // optimized layout bypass block
-    if Hachimi::instance().game.region == Region::Japan && path.contains("PartsCharaMessage") {
+    if Hachimi::instance().game.region == Region::Japan && get_path!().contains("PartsCharaMessage") {
         settings.horizontalOverflow = 0;
         settings.verticalOverflow = 0;
         settings.resizeTextMaxSize = 32;
         settings.resizeTextMinSize = 14;
         settings.resizeTextForBestFit = true;
     
-        if path.contains("PartsCharaMessage/ScaleAnim/Base/Message") && !context.is_null() {
+        if get_path!().contains("PartsCharaMessage/ScaleAnim/Base/Message") && !context.is_null() {
             unsafe {
                 let rt = (*context).transform();
                 if !rt.is_null() && il2cpp_class_is_assignable_from(RectTransform::class(), (*rt).klass()) {
@@ -190,7 +179,8 @@ extern "C" fn PopulateWithErrors(
     }
 
     if !text_settings.font_overrides.is_empty() || !text_settings.text_properties_overrides.is_empty() {
-        if let Some(size) = find_font_override(&text_settings.font_overrides, &path) {
+        let path = get_path!();
+        if let Some(size) = find_font_override(&text_settings.font_overrides, path) {
             settings.fontSize = size;
         }
 
@@ -198,7 +188,7 @@ extern "C" fn PopulateWithErrors(
             info!("[PopulateWithErrors] path: {}, total_overrides: {}", path, text_settings.text_properties_overrides.len());
         }
 
-        if let Some(props) = find_text_property_override(&text_settings.text_properties_overrides, &path) {
+        if let Some(props) = find_text_property_override(&text_settings.text_properties_overrides, path) {
             let common = &props.common;
             if let Some(fs) = common.font_size { settings.fontSize = fs; }
             if let Some(ls) = common.line_spacing { settings.lineSpacing = ls; }
@@ -235,16 +225,17 @@ extern "C" fn PopulateWithErrors(
 
         if config.text_debug && config.text_property_dump {
             let mut dumped = DUMPED_PATHS.lock().unwrap();
-            if !dumped.contains(&path) {
-                dump_properties(context, &path, &settings);
-                dumped.insert(path.clone());
+            if !dumped.contains(path) {
+                dump_properties(context, path, &settings);
+                dumped.insert(path.to_string());
             }
         }
     } else if config.text_debug && config.text_property_dump {
+        let path = get_path!();
         let mut dumped = DUMPED_PATHS.lock().unwrap();
-        if !dumped.contains(&path) {
-            dump_properties(context, &path, &settings);
-            dumped.insert(path.clone());
+        if !dumped.contains(path) {
+            dump_properties(context, path, &settings);
+            dumped.insert(path.to_string());
         }
     }
 
@@ -273,6 +264,7 @@ extern "C" fn PopulateWithErrors(
                 }
             } else { (0.0, 0.0) };
 
+            let path = get_path!();
             if hashed_text.is_some() {
                 info!("[Hashed] hash: {:X}, original: {}, processed: {}, size: {}, bf: {}, ho: {}, vo: {}, rt: {}, dsx: {}, dsy: {}, ta: {}, extents: {:?}, pivot: {:?}, context: {}",
                     hash, safe_orig, safe_processed, settings.fontSize, settings.resizeTextForBestFit, settings.horizontalOverflow, settings.verticalOverflow, settings.richText, ctx_size_delta.0, ctx_size_delta.1, settings.textAnchor, settings.generationExtents, settings.pivot, path);
@@ -284,6 +276,7 @@ extern "C" fn PopulateWithErrors(
         orig_fn(this, processed_text.to_il2cpp_string(), settings, context)
     } else {
         if config.text_debug && config.text_log {
+            let path = get_path!();
             let orig_s = unsafe { (*str_).as_utf16str().to_string() };
             let orig_s = orig_s.replace('\n', "\\n").replace('\r', "\\r");
 

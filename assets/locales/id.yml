@@ -86,8 +86,11 @@ menu:
 
 notification: 
   saved_localize_dump: "Tersimpan sebagai localize_dump.json"
+  freeform_window_disabled_landscape: "Jendela bebas dinonaktifkan karena mode lanskap sedang aktif."
+  free_camera_unavailable_live: "Kamera Bebas tidak tersedia di Konser ini karena masalah yang diketahui. Kamera telah dinonaktifkan untuk Konser ini."
   config_reloaded: "Konfigurasi dimuat ulang."
   config_saved: "Konfigurasi tersimpan."
+  recommended_ui_scale_applied: "Menerapkan skala UI yang disarankan"
   config_error: "Konfigurasi rusak. Menggunakan nilai default..."
   localized_data_reloaded: "Data lokalisasi dimuat ulang."
   tl_repo_changed: "Repositori translasi diubah. Data lokalisasi dimuat ulang."
@@ -101,6 +104,7 @@ notification:
   mod_update_completed: "Pembaruan addon berhasil."
   errors_during_update: "%{count} error terjadi ketika pembaruan. Mohon periksa log untuk info lanjutan."
   checking_for_updates: "Memeriksa pembaruan..."
+  github_update_unreachable: "Tidak dapat terhubung ke GitHub, mencoba menggunakan Codeberg..."
   no_updates: "Tidak ada pembaruan."
   press_to_set_menu_key: "Tekan tombol di jendela game untuk atur hotkey."
   menu_open_key_set: "Hotkey buka menu diatur ke %{key}"
@@ -230,6 +234,8 @@ config_editor:
   cyspring_mono_uncap_frame_scale: "Hapus Batas Skala Frame CySpring Mono"
   cyspring_disable_native: "Paksa jalur CySpring Mono"
   cyspring_disable_native_desc: "Nonaktifkan plugin native"
+  cyspring_stiffness_force_rate_scale: "Skala Kekuatan Kekakuan CySpring"
+  cyspring_drag_force_rate_scale: "Skala Kekuatan Hambatan CySpring"
   disable_skill_name_translation: "Matikan translasi nama skill"
   hide_ingame_ui_hotkey: "Sembunyikan hotkey UI dalam game"
   hide_ingame_ui_hotkey_info: >-
@@ -239,6 +245,14 @@ config_editor:
   unlock_live_chara: "Buka Kunci Karakter/Lagu Live Theater"
   live_slider_always_show: "Selalu Tampilkan Kontrol Live"
   live_playback_loop: "Ulangi Pertunjukan Live"
+  trainer_live_landscape: "Mode lanskap di konser MeniShuki"
+  force_orientation_mode: "Paksa mode orientasi"
+  recommended_ui_scale: "Terapkan skala UI yang disarankan"
+  freeform_window: "Jendela bebas"
+  freeform_ui_scale_auto: "Skala UI otomatis di jendela bebas"
+  freeform_ui_scale_auto_ratio: "Rasio skala UI otomatis"
+  free_camera: "Kamera Bebas"
+  taskbar_show_progress_on_schedule_book: "Kemajuan taskbar di Agenda Pelatih"
   champions_live_show_text: "Ganti Teks Champions Meeting Live"
   champions_live_resource_id: "Judul Champions Meeting"
   champions_live_year: "Tahun Champions Meeting"
@@ -411,3 +425,112 @@ key_names:
   plus: "Plus"
   equals: "Sama Dengan"
   unknown: "Tombol %{code}"
+free_camera:
+  enable: "Aktifkan Kamera Bebas"
+  settings_title: "Pengaturan Kamera Bebas"
+  section_general: "Umum"
+  section_live: "Live Theater"
+  section_race: "Balapan"
+  section_keybinds: "Keybind Windows"
+  remove_camera_effects: "Hapus efek kamera"
+  live_remove_screen_effects: "Hapus efek layar"
+  live_disable_character_teleport: "Nonaktifkan teleportasi karakter"
+  live_force_all_characters_visible: "Selalu tampilkan semua karakter"
+  show_overlay: "Tampilkan overlay switch"
+  selfie_use_head_transform: "Gunakan tongsis di Ikuti Karakter"
+  mode: "Mode"
+  mode_free: "Gerakan Bebas"
+  mode_first_person: "Orang Pertama"
+  mode_selfie_stick: "Ikuti Karakter"
+  live_move_step: "Kecepatan gerak di Live"
+  race_move_step: "Kecepatan gerak di Balapan"
+  look_step: "Kecepatan melihat"
+  mouse_speed: "Kecepatan mouse"
+  live_fov: "FOV di Live"
+  race_fov: "FOV di Balapan"
+  gamepad_deadzone: "Gamepad deadzone"
+  gamepad_move_speed: "Kecepatan gerak gamepad"
+  gamepad_look_speed: "Kecepatan melihat gamepad"
+  live_target_position: "Posisi target Live"
+  live_target_part: "Bagian target Live"
+  live_selfie_horizontal_stabilization: "Dead zone horizontal ikuti Live"
+  live_selfie_vertical_stabilization: "Dead zone vertikal ikuti Live"
+  live_follow_offset: "Offset ikuti Live"
+  live_follow_lookat_offset: "Offset pandangan Live"
+  live_follow_smooth: "Kehalusan ikuti Live"
+  live_follow_smooth_lookat_step: "Penghalusan pandangan Live"
+  live_follow_smooth_pos_step: "Penghalusan posisi Live"
+  live_first_person_offset: "Offset orang pertama Live"
+  race_target_index: "Indeks target Balapan (-1 = otomatis)"
+  race_follow_offset: "Offset ikuti Balapan"
+  race_follow_distance: "Jarak ikuti Balapan"
+  race_first_person_lookat_offset: "Offset pandangan Balapan"
+  overlay_mode: "Mode: %{mode}"
+  overlay_target: "Target: %{target}"
+  overlay_part: "Bagian: %{part}"
+  target_auto: "Otomatis"
+  target_gate: "Pintu %{index}"
+  key_move_forward: "Maju ke depan"
+  key_move_back: "Mundur ke belakang"
+  key_move_left: "Geser ke kiri"
+  key_move_right: "Geser ke kanan"
+  key_move_down: "Turun ke bawah"
+  key_move_up: "Naik ke atas"
+  key_look_up: "Lihat ke atas"
+  key_look_down: "Lihat ke bawah"
+  key_look_left: "Lihat ke kiri"
+  key_look_right: "Lihat ke kanan"
+  key_fov_increase: "Tingkatkan FOV"
+  key_fov_decrease: "Kurangi FOV"
+  key_follow_offset_up: "Offset ikuti ke atas"
+  key_follow_offset_down: "Offset ikuti ke bawah"
+  key_follow_offset_left: "Offset ikuti ke kiri"
+  key_follow_offset_right: "Offset ikuti ke kanan"
+  key_target_previous: "Target sebelumnya"
+  key_target_next: "Target berikutnya"
+  key_part_previous: "Bagian tubuh sebelumnya"
+  key_part_next: "Bagian tubuh berikutnya"
+  key_reset: "Reset posisi kamera"
+  key_cycle_mode: "Ganti mode"
+  key_reverse: "Balikkan perspektif kamera ikuti (depan <-> belakang)"
+  cheatsheet_title: "Panduan Cepat Kamera Bebas"
+  cheatsheet_contents: |
+    # Panduan Cepat Kamera Bebas
+    Fitur ini hanya berfungsi di **Balapan** atau **Konser Live**.
+
+    Bagian tubuh default adalah **Face**.
+
+    Target default adalah **Place01**.
+
+    ## Kontrol Mouse
+    * **Tahan Klik Kanan + Geser:** Melihat sekeliling
+    * **Scroll Wheel Atas / Bawah:** Tingkatkan FOV / Kurangi FOV
+
+    ---
+
+    ## Kontrol Gamepad (Xbox / PlayStation)
+
+    ### **Gerakan & Sudut Kamera**
+    * **Joystick Kiri:** Bergerak kiri / kanan / maju / mundur
+    * **Joystick Kanan:** Melihat kiri / kanan / atas / bawah
+    * **Trigger Kanan (RT / R2):** Bergerak ke atas
+    * **Trigger Kiri (LT / L2):** Bergerak ke bawah
+    * **Bumper Kanan (RB / R1):** Kurangi FOV
+    * **Bumper Kiri (LB / L1):** Tingkatkan FOV
+
+    ---
+
+    ### Tombol Aksi
+    * **Y** (Segitiga): Reset posisi kamera
+    * **X** (Kotak): Ganti mode kamera
+    * **B** (Lingkaran): Balikkan perspektif kamera ikuti *(depan <-> belakang, hanya Ikuti Karakter)*
+    * **A** (Silang): Jeda / lanjutkan konser
+
+    ---
+
+    ### Kontrol D-Pad (Tidak tersedia di Gerakan Bebas)
+    * **D-Pad Kanan:** Target berikutnya *(Ikuti Karakter & Orang Pertama)*
+    * **D-Pad Kiri:** Target sebelumnya *(Ikuti Karakter & Orang Pertama)*
+    * **D-Pad Atas:** Bagian tubuh berikutnya *(hanya Ikuti Karakter)*
+    * **D-Pad Bawah:** Bagian tubuh sebelumnya *(hanya Ikuti Karakter)*
+

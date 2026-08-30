@@ -11,7 +11,12 @@ use crate::{
     }
 };
 
-use std::{ffi::c_void, ptr::null_mut, sync::atomic::{AtomicBool, Ordering}};
+use std::{
+    ffi::c_void,
+    ptr::null_mut,
+    sync::atomic::{AtomicBool, AtomicU64, Ordering},
+    time::{SystemTime, UNIX_EPOCH},
+};
 
 #[repr(C)]
 #[derive(Clone, Copy)]
@@ -34,6 +39,34 @@ pub struct AudioPlayback {
 
 static DRAG_WAS_PAUSED: AtomicBool = AtomicBool::new(false);
 static DRAG_IN_PROGRESS: AtomicBool = AtomicBool::new(false);
+static LAST_LOOP_RESTART_MS: AtomicU64 = AtomicU64::new(0);
+
+const MIN_LOOP_TOTAL_TIME: f32 = 30.0;
+const MIN_LOOP_CURRENT_TIME: f32 = 1.0;
+const LOOP_RESTART_COOLDOWN_MS: u64 = 1000;
+
+fn now_millis() -> u64 {
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|duration| duration.as_millis() as u64)
+        .unwrap_or(0)
+}
+
+pub fn should_loop_restart(current: f32, total: f32) -> bool {
+    if !Director::is_live_playing() || total < MIN_LOOP_TOTAL_TIME || current < MIN_LOOP_CURRENT_TIME {
+        return false;
+    }
+
+    let now = now_millis();
+    let last = LAST_LOOP_RESTART_MS.load(Ordering::Acquire);
+    let elapsed = if now >= last { now - last } else { LOOP_RESTART_COOLDOWN_MS };
+    if elapsed < LOOP_RESTART_COOLDOWN_MS {
+        return false;
+    }
+
+    LAST_LOOP_RESTART_MS.store(now, Ordering::Release);
+    true
+}
 
 fn get_live_view_controller() -> Option<*mut Il2CppObject> {
     let scene_manager = SceneManager::instance();
@@ -210,11 +243,14 @@ pub fn move_live_playback(target_time: f32) {
             let audio_ctrl_dict_field = get_field_from_name(
                 unsafe { (*cri_audio_manager).klass() }, c"audioCtrlDict"
             );
-            let audio_ctrl_dict = get_field_object_value::<Il2CppObject>(
-                cri_audio_manager, audio_ctrl_dict_field
-            );
+            if audio_ctrl_dict_field.is_null() {
+                warn!("audioCtrlDict field not found! Skipping audio sync.");
+            } else {
+                let audio_ctrl_dict = get_field_object_value::<Il2CppObject>(
+                    cri_audio_manager, audio_ctrl_dict_field
+                );
 
-            if !audio_ctrl_dict.is_null() {
+                if !audio_ctrl_dict.is_null() {
                 let mut song_playback = AudioManager::get__songPlayback(audio_manager);
 
                 unsafe { process_playback(&mut song_playback, audio_ctrl_dict, target_time); }
@@ -230,6 +266,7 @@ pub fn move_live_playback(target_time: f32) {
                             process_playback(&mut slice[i], audio_ctrl_dict, target_time);
                         }
                     }
+                }
                 }
             }
         } else {

@@ -43,12 +43,27 @@ static QUERY_TEMPLATE_CACHE: Lazy<Mutex<FnvHashMap<String, QueryFactory>>> =
 
 #[inline(never)]
 fn parse_query(query: *mut Il2CppObject, sql: *const Il2CppString) {
-    let sql_str = unsafe { (*sql).as_utf16str() }.to_string();
-
-    // quick escape!!!11
-    if !sql_str.starts_with("SELECT") {
+    if sql.is_null() {
         return;
     }
+
+    let utf16_slice = unsafe { (*sql).as_utf16str() }.as_slice();
+    if utf16_slice.len() < 6 {
+        return;
+    }
+
+    // Zero-allocation prefix check for "SELECT" / "select"
+    let is_select = (utf16_slice[0] == 83 || utf16_slice[0] == 115)
+        && (utf16_slice[1] == 69 || utf16_slice[1] == 101)
+        && (utf16_slice[2] == 76 || utf16_slice[2] == 108)
+        && (utf16_slice[3] == 69 || utf16_slice[3] == 101)
+        && (utf16_slice[4] == 67 || utf16_slice[4] == 99)
+        && (utf16_slice[5] == 84 || utf16_slice[5] == 116);
+    if !is_select {
+        return;
+    }
+
+    let sql_str = unsafe { (*sql).as_utf16str() }.to_string();
 
     // Check the template cache first — avoid re-parsing the same SQL string.
     {

@@ -30,6 +30,7 @@ fn get_main_thread() -> Option<symbols::Thread> {
 struct CaptionState {
     handle: Option<symbols::GCHandle>,
     inited: bool,
+    fade_scheduled: bool,
     fade_id: u64,
     fade_start_time: Option<std::time::Instant>,
     display_time: f32,
@@ -56,6 +57,8 @@ impl CaptionState {
         self.handle = None;
         self.inited = false;
         self.fade_id = self.fade_id.wrapping_add(1);
+        self.fade_scheduled = false;
+        self.fade_start_time = None;
     }
 
     fn set_notification(&mut self, obj: *mut Il2CppObject) {
@@ -71,12 +74,39 @@ static STATE: Lazy<Mutex<CaptionState>> = Lazy::new(|| {
     Mutex::new(CaptionState {
         handle: None,
         inited: false,
+        fade_scheduled: false,
         fade_id: 0,
         fade_start_time: None,
         display_time: 0.0,
         fade_out_time: 0.5,
     })
 });
+
+fn schedule_fade_tick() {
+    let should_schedule = match STATE.lock() {
+        Ok(mut st) => {
+            if st.fade_scheduled {
+                false
+            } else {
+                st.fade_scheduled = true;
+                true
+            }
+        }
+        Err(e) => {
+            warn!("[captions] STATE mutex poisoned: {}", e);
+            false
+        }
+    };
+
+    if should_schedule {
+        if let Some(main) = get_main_thread() {
+            main.schedule(fade_tick_global);
+        } else if let Ok(mut st) = STATE.lock() {
+            st.fade_scheduled = false;
+            warn!("[captions] no attached threads, fade tick not scheduled");
+        }
+    }
+}
 
 fn is_native_alive(obj: *mut Il2CppObject) -> bool {
     if obj.is_null() { return false; }
@@ -359,24 +389,23 @@ fn show_impl(text: &str, line_char_count: i32) {
         st.fade_out_time = fade_out;
     }
 
-    // Schedule fade tick on the attached main thread if available.
-    if let Some(main) = get_main_thread() {
-        main.schedule(fade_tick_global);
-    } else {
-        warn!("[captions] no attached threads, fade tick not scheduled");
-    }
+    schedule_fade_tick();
 }
 
 fn fade_tick_global() {
+    if let Ok(mut st) = STATE.lock() {
+        st.fade_scheduled = false;
+    }
+
     // Snapshot under lock and re-validate after drop.
-    let (notif, nk, start_time, display_time, fade_out) = {
+    let (notif, nk, fade_id, start_time, display_time, fade_out) = {
         // Ensure STATE lock is handled safely.
         let st = state_lock!();
         let notif = st.notification();
         if notif.is_null() || !is_native_alive(notif) { return; }
         let start_time = match st.fade_start_time { Some(t) => t, None => return };
         let nk = klass(notif);
-        (notif, nk, start_time, st.display_time, st.fade_out_time)
+        (notif, nk, st.fade_id, start_time, st.display_time, st.fade_out_time)
         // lock dropped here
     };
     if !is_native_alive(notif) { return; }
@@ -393,6 +422,12 @@ fn fade_tick_global() {
     } else if elapsed >= display_time {
         let progress = (elapsed - display_time) / fade_out.max(0.001);
         alpha = 1.0 - progress.clamp(0.0, 1.0);
+    }
+
+    if let Ok(st) = STATE.lock() {
+        if st.fade_id != fade_id {
+            return;
+        }
     }
 
     static CG_FIELD_PTR: AtomicUsize = AtomicUsize::new(0);
@@ -479,9 +514,7 @@ fn fade_tick_global() {
 
     if !done {
         // Schedule the next fade tick on the main thread.
-        if let Some(main) = get_main_thread() {
-            main.schedule(fade_tick_global);
-        }
+        schedule_fade_tick();
     }
 }
 

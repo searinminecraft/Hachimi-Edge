@@ -691,6 +691,7 @@ impl Hachimi {
         info!("GameAssembly finished loading");
         il2cpp::symbols::init();
         il2cpp::hook::init();
+        crate::il2cpp::hook::umamusume::GameSystem::on_game_initialized();
 
         let config = self.config.load();
         if !config.disable_gui {
@@ -1476,7 +1477,6 @@ pub struct LocalizedData {
     pub character_system_text_dict: FnvHashMap<i32, FnvHashMap<i32, String>>, // {"character_id": {"voice_id": "text"}}
     pub race_jikkyo_comment_dict: FnvHashMap<i32, String>,                    // {"id": "text"}
     pub race_jikkyo_message_dict: FnvHashMap<i32, String>,                    // {"id": "text"}
-    pub replace_rules: Vec<(regex::Regex, String)>,
     assets_path: Option<PathBuf>,
 
     pub plural_form: plurals::Resolver,
@@ -1555,41 +1555,6 @@ impl LocalizedData {
                 config.race_jikkyo_message_dict.as_ref(),
             )
             .unwrap_or_default(),
-            replace_rules: {
-                let mut rules = Vec::new();
-                let rules_raw: Option<serde_json::Value> = Self::load_dict_static(
-                    &path,
-                    config.replace_rules.as_ref().or(Some(&"replace_rules.json".to_string())),
-                );
-                if let Some(val) = rules_raw {
-                    if let Some(map) = val.as_object() {
-                        for (pat, repl) in map {
-                            if let Some(repl_str) = repl.as_str() {
-                                match regex::Regex::new(pat) {
-                                    Ok(re) => rules.push((re, repl_str.to_string())),
-                                    Err(e) => warn!("Invalid regex rule '{}': {}", pat, e),
-                                }
-                            }
-                        }
-                    } else if let Some(arr) = val.as_array() {
-                        for item in arr {
-                            if let (Some(pat), Some(repl)) = (
-                                item.get("pattern").and_then(|v| v.as_str()),
-                                item.get("replace").and_then(|v| v.as_str()),
-                            ) {
-                                match regex::Regex::new(pat) {
-                                    Ok(re) => rules.push((re, repl.to_string())),
-                                    Err(e) => warn!("Invalid regex rule '{}': {}", pat, e),
-                                }
-                            }
-                        }
-                    }
-                }
-                if !rules.is_empty() {
-                    info!("Loaded {} dynamic regex replacement rules.", rules.len());
-                }
-                rules
-            },
             assets_path: path
                 .as_ref()
                 .map(|p| config.assets_dir.as_ref().map(|dir| p.join(dir)))
@@ -1748,7 +1713,6 @@ pub struct LocalizedDataConfig {
     pub character_system_text_dict: Option<String>,
     pub race_jikkyo_comment_dict: Option<String>,
     pub race_jikkyo_message_dict: Option<String>,
-    pub replace_rules: Option<String>,
     pub assets_dir: Option<String>,
     pub text_config: Option<String>,
     #[serde(default)]

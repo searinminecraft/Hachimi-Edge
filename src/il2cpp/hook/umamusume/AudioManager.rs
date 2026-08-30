@@ -6,7 +6,7 @@ use crate::{
         types::*,
     },
 };
-use super::SceneManager;
+use super::{SceneDefine::ViewId, SceneManager};
 
 static mut CLASS: *mut Il2CppClass = 0 as _;
 pub fn class() -> *mut Il2CppClass {
@@ -113,18 +113,76 @@ const EXCEPT_TRAINING_ALLOW_CUE_IDS: &[i32] = &[8, 9, 12, 13];
 const EXCEPT_TRAINING_ALLOW_VOICE_ID_RANGES: &[(i32, i32)] = &[(2030, 2037)];
 const EXCEPT_TRAINING_ALLOW_VOICE_ID_MIN: &[i32] = &[93000];
 const EXCEPT_TRAINING_SCENE_CHECK_VOICE_IDS: &[i32] = &[20025];
-const EXCEPT_TRAINING_SCENE_ALLOWED_VIEW_IDS: &[i32] = &[5901];
+const EXCEPT_TRAINING_SCENE_ALLOWED_VIEW_IDS: &[i32] = &[ViewId::ChampionsLobby as i32];
 
-// Group 5 — View ID filter
-const SUPPRESS_VIEW_IDS: &[i32] = &[
-    101,  // Home
-    3200, // Umamusume Stories
-    5620, // Daily Legend Races
-    8320, // "Beyond Memories" Event
-];
+// Group 5 — View ID filter exceptions
 const EXCEPT_VIEW_IDS: &[i32] = &[
-    5212, // Archive — Voices
+    ViewId::CharacterNoteMain as i32, // 5212: Archive — Voices
 ];
+
+/// Returns true if captions should be suppressed for the given ViewId.
+/// Suppresses menu, story, home, challenge, and event screens where character
+/// dialogue is already presented via on-screen speech balloons.
+fn is_view_id_suppressed(view_id: i32) -> bool {
+    // Whitelist / Exception views where captions must always be permitted:
+    // 5212: Character Note / Archive Voice Library
+    if view_id == ViewId::CharacterNoteMain as i32 {
+        return false;
+    }
+
+    match view_id {
+        // Home views (100: Home, 101: HomeHub)
+        id if (ViewId::Home as i32..=199).contains(&id) => true,
+
+        // Gacha views (300: GachaMain, 301: GachaResult)
+        id if (ViewId::GachaMain as i32..=399).contains(&id) => true,
+
+        // Story / Episode views (3000: Story, 3100: EpisodeMain, 3200: EpisodeCharacter, 3400: EpisodeExtra)
+        // (excluding MainStoryPaddock 3310)
+        id if (ViewId::Story as i32..=3309).contains(&id) || (3311..=3999).contains(&id) => true,
+
+        // OutGame Menus / Notes / Gallery / Profile / Mission / Catalog / Shop / Circle / RoomMatch Hubs
+        // (excluding CharacterNoteMain 5212)
+        id if (ViewId::OutGame as i32..=5211).contains(&id) || (5213..=5599).contains(&id) => true,
+
+        // Daily / Legend Race Tops (5600: DailyRace, 5620: LegendRace, 5650: DailyLegendRaceTop)
+        // (excluding Paddocks DailyRacePaddock = 5610, LegendRacePaddock = 5630)
+        id if id == ViewId::DailyRace as i32 || id == ViewId::LegendRace as i32 || id == ViewId::DailyLegendRaceTop as i32 => true,
+
+        // Menu items / Trophy / Shop / Circle / Profile Card
+        id if id == ViewId::MenuItem as i32
+            || id == ViewId::MenuTrophyRoom as i32
+            || id == ViewId::MenuShop as i32
+            || id == ViewId::Circle as i32
+            || id == ViewId::CircleProfileCard as i32 => true,
+
+        // Training Challenge / Masters Challenge (6300: Hub, 6301: Top, 6302: Leading/Ranking, 6303: SupportCardRanking)
+        id if (ViewId::TrainingChallengeHub as i32..=6399).contains(&id) => true,
+
+        // Jobs Hub / Top / Confirm / Result
+        id if (ViewId::JobsHub as i32..=ViewId::JobsResult as i32).contains(&id) => true,
+
+        // Schedule Book / Const Walking
+        id if (ViewId::ScheduleBookTop as i32..=ViewId::ConstWalkingTop as i32).contains(&id) => true,
+
+        // Crane Game
+        id if id == ViewId::CraneGame as i32 || (ViewId::CraneGameTop as i32..=ViewId::CraneGameCharacterSelect as i32).contains(&id) => true,
+
+        // Story Events, Challenge Match, Transfer, Team Building, Heroes, Collect/Raid, Factor Research, Ultimate Race, Campaigns
+        // Explicitly excluding race paddocks:
+        // - ChallengeMatchPaddock = 8160
+        // - TeamBuildingPaddock = 8260
+        // - HeroesPaddock = 8295
+        // - UltimateRacePaddock = 8361
+        id if (ViewId::StoryEventHub as i32..=8500).contains(&id)
+            && id != ViewId::ChallengeMatchPaddock as i32
+            && id != ViewId::TeamBuildingPaddock as i32
+            && id != ViewId::HeroesPaddock as i32
+            && id != ViewId::UltimateRacePaddock as i32 => true,
+
+        _ => false,
+    }
+}
 
 /// Fetches the current SceneManager view ID. Returns 0 on failure.
 fn get_current_view_id() -> i32 {
@@ -223,9 +281,7 @@ fn lookup_cst_entry(chara_id: i32, cue_id: i32, cue_name: &str) -> Option<CstEnt
                 && EXCEPT_VIEW_IDS.contains(&current_view_id);
 
             // ── Rule 5 — Global view ID suppression ─────────────────────────
-            let suppressed_view = !force_show_view
-                && !SUPPRESS_VIEW_IDS.is_empty()
-                && SUPPRESS_VIEW_IDS.contains(&current_view_id);
+            let suppressed_view = !force_show_view && is_view_id_suppressed(current_view_id);
             if suppressed_view {
                 if do_log {
                     info!("[captions] SKIP  | chara_id={} voice_id={} cue_id={} item_cue_id={} view_id={} cue_name={} reason=suppressed view_id {}",
@@ -293,24 +349,32 @@ fn lookup_cst_entry(chara_id: i32, cue_id: i32, cue_name: &str) -> Option<CstEnt
     None
 }
 
-fn is_caption_redundant() -> bool {
+fn has_active_speech_bubble() -> bool {
+    let current_view_id = get_current_view_id();
+    // Character Voice Archive in Character Note must always allow captions
+    if current_view_id == ViewId::CharacterNoteMain as i32 {
+        return false;
+    }
+
     use crate::il2cpp::hook::{
         umamusume::PartsCharaMessageBase,
         UnityEngine_CoreModule::{GameObject, Object},
     };
 
+    // 1. Check for active PartsCharaMessageBase speech bubble components in scene
     let parts_type = PartsCharaMessageBase::type_object();
     if !parts_type.is_null() {
         let objects = Object::FindObjectsOfType(parts_type, false);
         if !objects.this.is_null() && objects.len() > 0 {
             for obj in unsafe { objects.as_slice() } {
-                if !obj.is_null() && PartsCharaMessageBase::get_IsPlaying(*obj) {
+                if !obj.is_null() {
                     return true;
                 }
             }
         }
     }
 
+    // 2. Check for Episode character / story list balloon root
     let balloon_path = "/Gallop.GameSystem/SystemManagerRoot/SystemSingleton/UIManager/GameCanvas/MainCanvas/EpisodeCharacterView(Clone)/ContentsRoot/PartsEpisodeList/MidArea/BalloonRoot".to_il2cpp_string();
     let balloon = GameObject::Find(balloon_path);
     if !balloon.is_null() {
@@ -377,9 +441,9 @@ extern "C" fn PlayInternal(this: *mut Il2CppObject, group: SoundGroup,
                                 } else { 0.0 };
                                 let length = if length <= 0.0 { 3.0 } else { length };
 
-                                if is_caption_redundant() {
+                                if has_active_speech_bubble() {
                                     if do_log {
-                                        info!("[captions] SKIP  (redundant — native bubble/balloon active) | chara_id={} voice_id={}",
+                                        info!("[captions] SKIP  (redundant — speech bubble active on page) | chara_id={} voice_id={}",
                                             chara_id, cst_entry.voice_id);
                                     }
                                 } else {

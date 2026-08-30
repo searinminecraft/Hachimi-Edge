@@ -271,7 +271,7 @@ extern "C" fn nativeInjectEvent(mut env: JNIEnv, obj: JObject, input_event: JObj
                 return Ok(None); // forward
             }
 
-            let mut capture = false;
+            let mut capture;
 
             {
                 let Some(mut gui) = Gui::instance().map(|m| m.lock().unwrap()) else {
@@ -283,11 +283,7 @@ extern "C" fn nativeInjectEvent(mut env: JNIEnv, obj: JObject, input_event: JObj
 
                 match action_masked {
                     ACTION_DOWN | ACTION_POINTER_DOWN | ACTION_SCROLL => {
-                        if let Some(layer) = gui.context.layer_id_at(pos) {
-                            if layer.order != egui::Order::Background {
-                                capture = true;
-                            }
-                        }
+                        capture = is_pos_over_gui(&gui.context, pos);
                         if !capture && gui.is_consuming_input() {
                             let menu_w = crate::core::gui::get_menu_width();
                             if pos.x < menu_w {
@@ -395,6 +391,14 @@ fn get_ppp(mut env: JNIEnv, gui: &Gui) -> f32 {
             }
             gui.context.pixels_per_point()
         }
+    }
+}
+
+fn is_pos_over_gui(context: &egui::Context, pos: egui::Pos2) -> bool {
+    match context.layer_id_at(pos) {
+        Some(layer) if layer.order != egui::Order::Background => true,
+        Some(_) => context.viewport(|viewport| !viewport.prev_pass.unused_rect.contains(pos)),
+        None => false,
     }
 }
 

@@ -69,6 +69,9 @@ extern "C" fn IDXGISwapChain_Present(this: *mut c_void, sync_interval: c_uint, f
     let hachimi = Hachimi::instance();
     if let Ok(callbacks) = hachimi.present_callbacks.lock() {
         for (callback, userdata) in callbacks.iter() {
+            if *callback == 0 {
+                continue;
+            }
             let callback: unsafe extern "C" fn(*mut c_void, *mut c_void) = unsafe { std::mem::transmute(*callback) };
             unsafe { callback(this, *userdata as *mut c_void); }
         }

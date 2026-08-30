@@ -86,8 +86,11 @@ menu:
 
 notification: 
   saved_localize_dump: "Exportado en localize_dump.json"
+  freeform_window_disabled_landscape: "La ventana libre se ha desactivado porque el modo horizontal está activo."
+  free_camera_unavailable_live: "La Cámara Libre no está disponible en este Live debido a un problema conocido. Se ha desactivado para este Live."
   config_reloaded: "Configuración recargada."
   config_saved: "Configuración guardada."
+  recommended_ui_scale_applied: "Escala de UI recomendada aplicada"
   config_error: "La configuración está corrupta. Usando valores por defecto..."
   localized_data_reloaded: "Localización recargada."
   tl_repo_changed: "Repositorio cambiado. Se han recargado los datos de localización."
@@ -101,6 +104,7 @@ notification:
   mod_update_completed: "Actualización de addon completada."
   errors_during_update: "Se produjeron errores al actualizar (%{count}). Comprueba los registros para más detalles."
   checking_for_updates: "Buscando actualizaciones..."
+  github_update_unreachable: "No se puede conectar a GitHub, intentando con Codeberg..."
   no_updates: "No hay actualizaciones."
   press_to_set_menu_key: "Pulsa una tecla para establecer la tecla que abre el menú."
   menu_open_key_set: "Tecla para abrir el menú: %{key}"
@@ -232,6 +236,8 @@ config_editor:
   cyspring_mono_uncap_frame_scale: "Desbloquear escala de fotogramas CySpring Mono"
   cyspring_disable_native: "Forzar ruta Mono de CySpring"
   cyspring_disable_native_desc: "Deshabilita el plugin nativo"
+  cyspring_stiffness_force_rate_scale: "Escala de fuerza de rigidez CySpring"
+  cyspring_drag_force_rate_scale: "Escala de fuerza de arrastre CySpring"
   disable_skill_name_translation: "No traducir habilidades"
   hide_ingame_ui_hotkey: "Atajo para ocultar UI del juego"
   hide_ingame_ui_hotkey_info: >-
@@ -241,6 +247,14 @@ config_editor:
   unlock_live_chara: "Desbloquear personajes/canciones del Live Theater"
   live_slider_always_show: "Mostrar siempre el control de Live"
   live_playback_loop: "Repetir actuaciones en vivo"
+  trainer_live_landscape: "Modo horizontal en el Live MeniShuki"
+  force_orientation_mode: "Forzar modo de orientación"
+  recommended_ui_scale: "Aplicar escala de UI recomendada"
+  freeform_window: "Ventana libre"
+  freeform_ui_scale_auto: "Ajustar automáticamente la escala de UI en ventana libre"
+  freeform_ui_scale_auto_ratio: "Relación de escala automática de UI"
+  free_camera: "Cámara Libre"
+  taskbar_show_progress_on_schedule_book: "Progreso en barra de tareas en la Agenda del entrenador"
   champions_live_show_text: "Reemplazar texto del Champions Meeting Live"
   champions_live_resource_id: "Título del Champions Meeting"
   champions_live_year: "Año del Champions Meeting"
@@ -415,3 +429,112 @@ key_names:
   plus: "Más"
   equals: "Igual"
   unknown: "Tecla %{code}"
+free_camera:
+  enable: "Activar Cámara Libre"
+  settings_title: "Ajustes de Cámara Libre"
+  section_general: "General"
+  section_live: "Live Theater"
+  section_race: "Carrera"
+  section_keybinds: "Atajos de teclado de Windows"
+  remove_camera_effects: "Eliminar efectos de cámara"
+  live_remove_screen_effects: "Eliminar efectos de pantalla"
+  live_disable_character_teleport: "Desactivar teletransporte de personajes"
+  live_force_all_characters_visible: "Mostrar siempre todos los personajes"
+  show_overlay: "Mostrar superposición de cambio"
+  selfie_use_head_transform: "Usar palo selfie en Seguir Personaje"
+  mode: "Modo"
+  mode_free: "Movimiento Libre"
+  mode_first_person: "Primera Persona"
+  mode_selfie_stick: "Seguir Personaje"
+  live_move_step: "Velocidad de movimiento en Live"
+  race_move_step: "Velocidad de movimiento en Carrera"
+  look_step: "Velocidad de mirada"
+  mouse_speed: "Velocidad del ratón"
+  live_fov: "FOV en Live"
+  race_fov: "FOV en Carrera"
+  gamepad_deadzone: "Zona muerta del mando"
+  gamepad_move_speed: "Velocidad de movimiento con mando"
+  gamepad_look_speed: "Velocidad de mirada con mando"
+  live_target_position: "Posición objetivo en Live"
+  live_target_part: "Parte objetivo en Live"
+  live_selfie_horizontal_stabilization: "Zona muerta horizontal de seguimiento en Live"
+  live_selfie_vertical_stabilization: "Zona muerta vertical de seguimiento en Live"
+  live_follow_offset: "Desplazamiento de seguimiento en Live"
+  live_follow_lookat_offset: "Desplazamiento de mirada en Live"
+  live_follow_smooth: "Suavizado de seguimiento en Live"
+  live_follow_smooth_lookat_step: "Suavizado de mirada en Live"
+  live_follow_smooth_pos_step: "Suavizado de posición en Live"
+  live_first_person_offset: "Desplazamiento de primera persona en Live"
+  race_target_index: "Índice de objetivo en Carrera (-1 = auto)"
+  race_follow_offset: "Desplazamiento de seguimiento en Carrera"
+  race_follow_distance: "Distancia de seguimiento en Carrera"
+  race_first_person_lookat_offset: "Desplazamiento de mirada en Carrera"
+  overlay_mode: "Modo: %{mode}"
+  overlay_target: "Objetivo: %{target}"
+  overlay_part: "Parte: %{part}"
+  target_auto: "Automático"
+  target_gate: "Puerta %{index}"
+  key_move_forward: "Mover hacia adelante"
+  key_move_back: "Mover hacia atrás"
+  key_move_left: "Mover a la izquierda"
+  key_move_right: "Mover a la derecha"
+  key_move_down: "Mover hacia abajo"
+  key_move_up: "Mover hacia arriba"
+  key_look_up: "Mirar hacia arriba"
+  key_look_down: "Mirar hacia abajo"
+  key_look_left: "Mirar a la izquierda"
+  key_look_right: "Mirar a la derecha"
+  key_fov_increase: "Aumentar FOV"
+  key_fov_decrease: "Disminuir FOV"
+  key_follow_offset_up: "Desplazamiento de seguimiento hacia arriba"
+  key_follow_offset_down: "Desplazamiento de seguimiento hacia abajo"
+  key_follow_offset_left: "Desplazamiento de seguimiento a la izquierda"
+  key_follow_offset_right: "Desplazamiento de seguimiento a la derecha"
+  key_target_previous: "Objetivo anterior"
+  key_target_next: "Objetivo siguiente"
+  key_part_previous: "Parte del cuerpo anterior"
+  key_part_next: "Parte del cuerpo siguiente"
+  key_reset: "Restablecer posición de la cámara"
+  key_cycle_mode: "Cambiar modo"
+  key_reverse: "Invertir perspectiva de cámara de seguimiento (frontal <-> trasera)"
+  cheatsheet_title: "Guía rápida de Cámara Libre"
+  cheatsheet_contents: |
+    # Guía rápida de Cámara Libre
+    Esta función solo está disponible en **Carreras** o **Conciertos en vivo**.
+
+    La parte del cuerpo predeterminada es **Face**.
+
+    El objetivo predeterminado es **Place01**.
+
+    ## Controles de ratón
+    * **Mantener Clic Derecho + Arrastrar:** Mirar alrededor
+    * **Rueda de desplazamiento Arriba / Abajo:** Aumentar FOV / Disminuir FOV
+
+    ---
+
+    ## Controles de mando (Xbox / PlayStation)
+
+    ### **Movimiento y ángulo de cámara**
+    * **Stick izquierdo:** Mover izquierda / derecha / adelante / atrás
+    * **Stick derecho:** Mirar izquierda / derecha / arriba / abajo
+    * **Gatillo derecho (RT / R2):** Mover hacia arriba
+    * **Gatillo izquierdo (LT / L2):** Mover hacia abajo
+    * **Botón superior derecho (RB / R1):** Disminuir FOV
+    * **Botón superior izquierdo (LB / L1):** Aumentar FOV
+
+    ---
+
+    ### Botones de acción
+    * **Y** (Triángulo): Restablecer posición de la cámara
+    * **X** (Cuadrado): Cambiar modo de cámara
+    * **B** (Círculo): Invertir perspectiva de seguimiento *(frontal <-> trasera, solo Seguir Personaje)*
+    * **A** (Cruz): Pausar / reanudar concierto
+
+    ---
+
+    ### Controles de cruceta (No disponible en Movimiento Libre)
+    * **Cruceta Derecha:** Objetivo siguiente *(Seguir Personaje y Primera Persona)*
+    * **Cruceta Izquierda:** Objetivo anterior *(Seguir Personaje y Primera Persona)*
+    * **Cruceta Arriba:** Siguiente parte del cuerpo *(solo Seguir Personaje)*
+    * **Cruceta Abajo:** Parte del cuerpo anterior *(solo Seguir Personaje)*
+

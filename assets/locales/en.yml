@@ -104,6 +104,7 @@ notification:
   mod_update_completed: "Addon update completed."
   errors_during_update: "%{count} errors occurred during update. Check logs for more info."
   checking_for_updates: "Checking for updates..."
+  github_update_unreachable: "GitHub is unreachable, trying Codeberg instead..."
   no_updates: "No updates available."
   press_to_set_menu_key: "Press a key in the game window to set the open-menu hotkey."
   menu_open_key_set: "Open-menu hotkey set to %{key}"

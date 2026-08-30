@@ -22,7 +22,7 @@ use crate::il2cpp::{
     hook::{
         UnityEngine_CoreModule::{Texture2D, RenderTexture, Graphics, Texture, SceneManager, Scene},
         UnityEngine_ImageConversionModule::ImageConversion,
-        umamusume::Director::LiveLoadSettings
+        umamusume::{AssetManager, Director::LiveLoadSettings}
     },
     types::*
 };
@@ -299,26 +299,14 @@ fn get_live_music_id() -> Option<i32> {
 }
 
 fn get_jacket_texture(music_id: i32) -> Option<*mut Il2CppObject> {
-    let image = crate::il2cpp::symbols::get_assembly_image(c"umamusume.dll").ok()?;
-    let am_klass = crate::il2cpp::symbols::get_class(image, c"Gallop", c"AssetManager").ok()?;
-
-    let get_loader_addr = crate::il2cpp::symbols::get_method_addr_cached(am_klass, c"get_Loader", 0);
-    if get_loader_addr == 0 { return None; }
-
-    let get_loader: extern "C" fn() -> *mut Il2CppObject = unsafe { std::mem::transmute(get_loader_addr) };
-    let loader = get_loader();
+    let loader = AssetManager::get_Loader();
     if loader.is_null() { return None; }
-
-    let load_asset_handle_addr = crate::il2cpp::symbols::get_method_addr_cached(unsafe { (*loader).klass() }, c"LoadAssetHandle", 2);
-    if load_asset_handle_addr == 0 { return None; }
-
-    let load_asset_handle: extern "C" fn(*mut Il2CppObject, *mut Il2CppString, bool) -> *mut Il2CppObject = unsafe { std::mem::transmute(load_asset_handle_addr) };
 
     let music_id_str = format!("{:04}", music_id);
     let jacket_name = format!("jacket_icon_m_{}", music_id_str);
     let path = format!("Live/Jacket/{}", jacket_name);
 
-    let asset_handle = load_asset_handle(loader, path.to_il2cpp_string(), false);
+    let asset_handle = AssetManager::LoadAssetHandle(loader, path.to_il2cpp_string(), false);
     if asset_handle.is_null() { return None; }
 
     let get_asset_bundle_addr = crate::il2cpp::symbols::get_method_addr_cached(unsafe { (*asset_handle).klass() }, c"get_assetBundle", 0);

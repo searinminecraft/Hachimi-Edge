@@ -86,8 +86,8 @@ menu:
 
 notification: 
   saved_localize_dump: "已儲存至 localize_dump.json"
-  free_camera_unavailable_live: "自由視角在本 Live 中存在已知問題，在此 Live 中將不會啟用自由視角。"
   freeform_window_disabled_landscape: "偵測到橫向模式，自由視窗已自動關閉。"
+  free_camera_unavailable_live: "自由視角在本 Live 中存在已知問題，在此 Live 中將不會啟用自由視角。"
   config_reloaded: "設定已重新載入。"
   config_saved: "設定已儲存。"
   recommended_ui_scale_applied: "已套用建議的介面縮放比例"
@@ -104,6 +104,7 @@ notification:
   mod_update_completed: "附加元件更新完成。"
   errors_during_update: "更新時發生 %{count} 個錯誤，請查看記錄以獲取詳細資訊。"
   checking_for_updates: "正在檢查更新..."
+  github_update_unreachable: "無法連線至 GitHub，正在嘗試改用 Codeberg 中⋯⋯"
   no_updates: "沒有可用的更新。"
   press_to_set_menu_key: "請在遊戲視窗按下新的按鍵以設為開啟選單按鍵。"
   menu_open_key_set: "已設定開啟選單按鍵為 %{key}"
@@ -200,7 +201,6 @@ config_editor:
   notification_jobs: "任務完成通知"
   taskbar_show_progress_on_download: "下載時顯示工作列進度"
   taskbar_show_progress_on_connecting: "連線時顯示工作列進度"
-  taskbar_show_progress_on_schedule_book: "在訓練員日程中顯示工作列進度"
   dump_msgpack: "匯出 MsgPack 回應"
   dump_msgpack_request: "匯出 MsgPack 請求"
   msgpack_notifier: "啟用 MsgPack 通知器"
@@ -233,6 +233,8 @@ config_editor:
   cyspring_mono_uncap_frame_scale: "CySpring Mono 幀率縮放解鎖"
   cyspring_disable_native: "強制 CySpring Mono 路徑"
   cyspring_disable_native_desc: "停用原生插件"
+  cyspring_stiffness_force_rate_scale: "CySpring 剛度縮放比例"
+  cyspring_drag_force_rate_scale: "CySpring 阻尼縮放比例"
   disable_skill_name_translation: "停用技能名稱翻譯"
   hide_ingame_ui_hotkey: "隱藏遊戲內 UI 快捷鍵"
   hide_ingame_ui_hotkey_info: >-
@@ -249,6 +251,7 @@ config_editor:
   freeform_ui_scale_auto: "自由視窗下自動縮放介面"
   freeform_ui_scale_auto_ratio: "自動介面縮放係數"
   free_camera: "自由視角"
+  taskbar_show_progress_on_schedule_book: "在訓練員日程中顯示工作列進度"
   champions_live_show_text: "覆蓋冠軍賽 Live 文字"
   champions_live_resource_id: "冠軍賽標題"
   champions_live_year: "冠軍賽年份"

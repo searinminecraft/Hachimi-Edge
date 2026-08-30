@@ -1057,11 +1057,6 @@ pub struct Vtable {
         params: *const Il2CppTypeEnum,
         param_count: usize,
     ) -> *mut c_void,
-    pub il2cpp_get_method_cached: unsafe extern "C" fn(
-        class: *mut Il2CppClass,
-        name: *const c_char,
-        args_count: i32,
-    ) -> *const MethodInfo,
     pub il2cpp_get_method_addr_cached: unsafe extern "C" fn(
         class: *mut Il2CppClass,
         name: *const c_char,
@@ -1155,17 +1150,6 @@ pub struct Vtable {
         userdata: *mut c_void,
     ) -> bool,
 
-    // Window management (version >= 3)
-    pub gui_new_window_id: unsafe extern "C" fn() -> i32,
-    pub gui_show_window: unsafe extern "C" fn(
-        id: i32,
-        title: *const c_char,
-        contents_callback: Option<GuiWindowCallback>,
-        bottom_callback: Option<GuiWindowCallback>,
-        userdata: *mut c_void,
-    ) -> bool,
-    pub gui_close_window: unsafe extern "C" fn(id: i32),
-
     pub android_dex_load:
         unsafe extern "C" fn(dex_ptr: *const u8, dex_len: usize, class_name: *const c_char) -> u64,
     pub android_dex_unload: unsafe extern "C" fn(handle: u64) -> bool,
@@ -1177,6 +1161,17 @@ pub struct Vtable {
         sig: *const c_char,
         arg: *const c_char,
     ) -> bool,
+
+    // Window management (version >= 3)
+    pub gui_new_window_id: unsafe extern "C" fn() -> i32,
+    pub gui_show_window: unsafe extern "C" fn(
+        id: i32,
+        title: *const c_char,
+        contents_callback: Option<GuiWindowCallback>,
+        bottom_callback: Option<GuiWindowCallback>,
+        userdata: *mut c_void,
+    ) -> bool,
+    pub gui_close_window: unsafe extern "C" fn(id: i32),
 
     pub il2cpp_runtime_object_init: unsafe extern "C" fn(object: *mut Il2CppObject),
     pub il2cpp_string_new: unsafe extern "C" fn(text: *const c_char) -> *mut Il2CppString,
@@ -1220,7 +1215,6 @@ impl Vtable {
         il2cpp_get_method_overload,
         il2cpp_get_method_addr,
         il2cpp_get_method_overload_addr,
-        il2cpp_get_method_cached,
         il2cpp_get_method_addr_cached,
         il2cpp_find_nested_class,
         il2cpp_resolve_icall,
@@ -1255,13 +1249,13 @@ impl Vtable {
         gui_ui_colored_label,
         gui_register_menu_item_icon,
         gui_register_menu_section_with_icon,
-        gui_new_window_id,
-        gui_show_window,
-        gui_close_window,
         android_dex_load,
         android_dex_unload,
         android_dex_call_static_noargs,
         android_dex_call_static_string,
+        gui_new_window_id,
+        gui_show_window,
+        gui_close_window,
         il2cpp_runtime_object_init,
         il2cpp_string_new,
         il2cpp_string_chars,

@@ -549,9 +549,19 @@ impl Gui {
                 return;
             }
 
-            if config.live_playback_loop && current >= total - 0.1 {
+            if config.live_playback_loop && current >= total - 0.1
+                && crate::core::live_utils::should_loop_restart(current, total)
+            {
+                crate::core::live_utils::begin_live_drag();
                 crate::core::live_utils::move_live_playback(0.0);
+                crate::core::live_utils::end_live_drag();
                 current = 0.0;
+            }
+
+            if !crate::il2cpp::hook::umamusume::Director::is_live_playing() {
+                IS_LIVE_SLIDER_ACTIVE.store(false, atomic::Ordering::Release);
+                crate::core::live_utils::reset_live_drag_state();
+                return;
             }
 
             if is_pause_live_addr != 0 {

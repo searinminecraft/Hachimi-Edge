@@ -104,6 +104,7 @@ notification:
   mod_update_completed: "Atualização de addon foi realizada."
   errors_during_update: "%{count} erros aconteceram durante a atualização. Verifique os registros para mais detalhes."
   checking_for_updates: "Procurando atualizações..."
+  github_update_unreachable: "GitHub não está acessível, tentando o Codeberg..."
   no_updates: "Nenhuma atualização encontrada."
   press_to_set_menu_key: "Pressione uma tecla para definir um atalho para o menu."
   menu_open_key_set: "Tecla definida para abrir o menu: %{key}"
@@ -234,6 +235,8 @@ config_editor:
   cyspring_mono_uncap_frame_scale: "Desbloquear escala de quadros CySpring Mono"
   cyspring_disable_native: "Forçar caminho Mono do CySpring"
   cyspring_disable_native_desc: "Desabilita o plugin nativo"
+  cyspring_stiffness_force_rate_scale: "Escala da força de rigidez CySpring"
+  cyspring_drag_force_rate_scale: "Escala da força de arrasto CySpring"
   disable_skill_name_translation: "Desabilitar tradução dos nomes das habilidades"
   hide_ingame_ui_hotkey: "Atalho para esconder a UI do jogo"
   hide_ingame_ui_hotkey_info: >-

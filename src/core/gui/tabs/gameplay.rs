@@ -3,6 +3,7 @@ use crate::core::gui::Gui;
 use crate::core::gui::dialogs::SimpleOkDialog;
 use crate::core::gui::windows::live_vocals::LiveVocalsSwapWindow;
 use crate::core::utils::get_localized_string;
+use crate::core::Hachimi;
 #[allow(unused_imports)]
 use egui_material3::*;
 use rust_i18n::t;
@@ -62,16 +63,21 @@ pub fn render(editor: &ConfigEditor, config: &mut crate::core::hachimi::Config, 
         }
     }
 
-    ConfigEditor::list_tile_switch(ui, t!("config_editor.skill_info_dialog"), &mut config.skill_info_dialog, true);
-    ConfigEditor::list_tile_combo(ui, t!("config_editor.homescreen_bgseason"), "homescreen_bgseason",
-        &mut config.homescreen_bgseason, &[
-            (BgSeason::None, &t!("default")),
-            (BgSeason::Spring,        &get_localized_string("Common0108").as_str()),
-            (BgSeason::Summer,        &get_localized_string("Common0109").as_str()),
-            (BgSeason::Fall,          &get_localized_string("Common0110").as_str()),
-            (BgSeason::Winter,        &get_localized_string("Common0111").as_str()),
-            (BgSeason::CherryBlossom, &get_localized_string("Common0112").as_str()),
-        ]);
+    if Hachimi::instance().game.region == crate::core::game::Region::Japan {
+        ConfigEditor::list_tile_switch(ui, t!("config_editor.skill_info_dialog"), &mut config.skill_info_dialog, true);
+    }
+
+    if Hachimi::instance().game.region != crate::core::game::Region::Taiwan {
+        ConfigEditor::list_tile_combo(ui, t!("config_editor.homescreen_bgseason"), "homescreen_bgseason",
+            &mut config.homescreen_bgseason, &[
+                (BgSeason::None, &t!("default")),
+                (BgSeason::Spring,        &get_localized_string("Common0108").as_str()),
+                (BgSeason::Summer,        &get_localized_string("Common0109").as_str()),
+                (BgSeason::Fall,          &get_localized_string("Common0110").as_str()),
+                (BgSeason::Winter,        &get_localized_string("Common0111").as_str()),
+                (BgSeason::CherryBlossom, &get_localized_string("Common0112").as_str()),
+            ]);
+    }
     ConfigEditor::list_tile_switch(ui, t!("config_editor.disable_skill_name_translation"), &mut config.disable_skill_name_translation, true);
 
     if ConfigEditor::list_tile_switch(ui, t!("config_editor.hide_ingame_ui_hotkey"), &mut config.hide_ingame_ui_hotkey, true)
