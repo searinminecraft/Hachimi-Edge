@@ -1,0 +1,547 @@
+hachimi: "Hachimi Edge"
+
+windows:
+  menu_open_key: "오른쪽 화살표"
+
+android:
+  menu_open_key: "볼륨 상 + 볼륨 하\n\uf72b 또는 왼쪽 상단 3번 탭"
+
+splash_sub: "\ue5d2 %{open_key_str} 키를 눌러 메뉴를 엽니다."
+loading_label: "불러오는 중..."
+search_filter: "검색어 입력..."
+open: "열기"
+cancel: "취소"
+save: "저장"
+done: "완료"
+next: "다음"
+previous: "이전"
+yes: "예"
+no: "아니오"
+ok: "확인"
+remove: "제거"
+save_changes: "변경 사항을 저장하시겠습니까?"
+retry: "다시 시도"
+bind_key: "키 설정"
+set_keybind:
+  title: "단축키 설정"
+  press_any_key: "아무 키나 누르세요…"
+  bound_key: "설정된 키: %{key}"
+default: "기본값"
+off: "끄기"
+on: "켜기"
+enable: "활성화"
+disabled: "비활성화됨"
+minutes: "분"
+info: "정보"
+warning: "경고"
+confirm_dialog_title: "확인"
+soft_restart_confirm_content: "게임을 소프트 재시작하시겠습니까?"
+in_game_browser_confirm_content: "인게임 브라우저를 여시겠습니까?"
+browser_dialog_title: "브라우저"
+spring: "봄"
+summer: "여름"
+fall: "가을"
+winter: "겨울"
+cherry_blossom: "벚꽃"
+
+change_translation_repo:
+  title: "번역 저장소 변경"
+  no_repos: "다운로드된 번역 저장소가 없습니다."
+  browse_repositories: "저장소 둘러보기"
+  active: "사용 중"
+  available: "사용 가능"
+  confirm_remove: "정말 \"%{name}\" 저장소를 제거하시겠습니까?"
+  cannot_remove_active: "현재 사용 중인 저장소는 제거할 수 없습니다. 먼저 다른 저장소로 전환하세요."
+  removing: "번역 저장소 제거 중..."
+  remove_in_progress: "번역 저장소를 제거할 수 없습니다. 이미 다른 제거 작업이 진행 중입니다."
+
+add_translation_repo:
+  title: "번역 저장소 추가"
+  select_translation_repo: "번역 저장소를 선택하세요:"
+
+menu:
+  check_for_updates: "\ue923 업데이트 확인"
+  fps_text: "FPS: %{fps}"
+  close_menu: "\ue5cd 메뉴 닫기"
+  stats_heading: "\ue473 통계"
+  localize_dict_entries: "localize_dict 항목: %{count}"
+  hashed_dict_entries: "hashed_dict 항목: %{count}"
+  config_heading: "\ue8b8 설정"
+  open_config_editor: "\ue8b9 설정 편집기 열기"
+  reload_config: "\ue5d5 설정 다시 불러오기"
+  open_first_time_setup: "\ue869 초기 설정 열기"
+  change_translation_repo: "\ue8da 번역 저장소 변경"
+  graphics_heading: "\ueb97 그래픽"
+  fps_label: "FPS"
+  vsync_label: "수직동기화 (VSync)"
+  stay_on_top: "항상 위에 표시"
+  keep_screen_on: "화면 꺼짐 방지"
+  translation_heading: "\ue894 번역"
+  reload_localized_data: "\ue5d5 번역 데이터 다시 불러오기"
+  tl_check_for_updates: "\ue923 번역 업데이트 확인"
+  tl_check_for_updates_pedantic: "\ue923 번역 업데이트 확인 (정밀)"
+  tl_check_for_addon_updates_pedantic: "\ue923 애드온 업데이트 확인 (정밀)"
+  dump_localize_dict: "\ue2c4 로컬라이즈 딕셔너리 덤프"
+  danger_zone_heading: "\ue8b2 위험 구역"
+  danger_zone_warning: "이 옵션은 게임에 의도치 않은 영향을 줄 수 있습니다. 주의해서 사용하세요!"
+  soft_restart: "\ue5d5 소프트 재시작"
+  open_in_game_browser: "\ue80b 인게임 브라우저 열기"
+  toggle_game_ui: "\ue8f4 게임 UI 전환"
+  discord_rpc: "디스코드 RPC"
+
+notification:
+  saved_localize_dump: "localize_dump.json에 저장되었습니다."
+  freeform_window_disabled_landscape: "가로 모드가 활성화되어 자유 크기 조절 창이 비활성화되었습니다."
+  free_camera_unavailable_live: "알려진 문제로 인해 이 라이브에서는 프리 카메라를 사용할 수 없습니다. 이 라이브에 대해 비활성화되었습니다."
+  config_reloaded: "설정을 다시 불러왔습니다."
+  config_saved: "설정이 저장되었습니다."
+  recommended_ui_scale_applied: "권장 UI 배율이 적용되었습니다."
+  config_error: "설정 파일이 손상되었습니다. 기본값을 대신 사용합니다..."
+  localized_data_reloaded: "번역 데이터를 다시 불러왔습니다."
+  tl_repo_changed: "번역 저장소가 변경되었습니다. 번역 데이터를 다시 불러왔습니다."
+  tl_repo_folder_missing: "번역 데이터 폴더가 없습니다. 번역을 복원하려면 업데이트를 확인하세요."
+  checking_for_tl_updates: "번역 업데이트 확인 중..."
+  checking_for_addon_updates: "애드온 업데이트 확인 중..."
+  no_tl_updates: "사용 가능한 번역 업데이트가 없습니다."
+  no_addon_updates: "사용 가능한 애드온 업데이트가 없습니다."
+  update_failed: "업데이트 실패: %{reason}"
+  update_completed: "업데이트가 완료되었습니다."
+  mod_update_completed: "애드온 업데이트가 완료되었습니다."
+  errors_during_update: "업데이트 중 %{count}개의 오류가 발생했습니다. 자세한 정보는 로그를 확인하세요."
+  checking_for_updates: "업데이트 확인 중..."
+  github_update_unreachable: "GitHub에 연결할 수 없어 Codeberg를 대신 시도합니다..."
+  no_updates: "사용 가능한 업데이트가 없습니다."
+  press_to_set_menu_key: "게임 창에서 메뉴 열기 단축키로 사용할 키를 누르세요."
+  menu_open_key_set: "메뉴 열기 단축키가 %{key}(으)로 설정되었습니다."
+  ipc_softreset_exec: "IPC 원격 소프트 리셋이 실행되었습니다."
+  atlas_workaround_reset: "아틀라스 파일이 변경되어 임시 해결책이 비활성화되었습니다."
+  asset_mismatch: "업데이트로 인해 일부 에셋이 비활성화되었습니다. 자세한 내용은 로그를 확인하세요."
+  error_occurred: "오류가 발생했습니다: %{reason}"
+
+first_time_setup:
+  title: "초기 설정"
+  welcome_heading: "환영합니다"
+  welcome_content: >-
+    Hachimi가 설치되었습니다! 초기 설정 과정을 안내해 드립니다.
+    번역 기능을 사용하지 않으시려면 이 대화상자를 닫아 건너뛸 수 있습니다.
+
+
+    면책 조항: Hachimi는 커뮤니티 주도 프로젝트입니다. 모든 번역은 다양한 커뮤니티 기여자에 의해 작성되었습니다.
+    Cygames, Inc.에서 개발하거나 보증하지 않으며 게임 이용약관을 위반할 수 있습니다.
+    계속 진행하면 사용에 따른 모든 위험을 감수하는 것으로 간주됩니다.
+  translation_repo_heading: "번역 저장소"
+  select_translation_repo: "번역 저장소를 선택하세요:"
+  no_compatible_repo: "이 게임 버전과 호환되는 번역 저장소가 없습니다."
+  skip_translation: "번역 건너뛰기"
+  common_settings_heading: "주요 설정"
+  common_settings_content: >-
+    핵심 게임플레이 및 시각적 설정을 구성합니다.
+    설정 편집기에서 언제든지 변경할 수 있습니다.
+  complete_heading: "모든 준비 완료!"
+  complete_content: >-
+    완료를 클릭하여 설정을 저장합니다.
+    번역 저장소를 선택한 경우 업데이트 확인이 진행되며,
+    새 번역 데이터를 다운로드하도록 안내합니다.
+
+about:
+  title: "정보"
+  copyright: "© 2024-%{year} LeadRDRK, kairusds and contributors"
+  view_license: "라이선스 보기"
+  open_website: "웹사이트 열기"
+  view_source_code: "소스 코드 보기"
+
+license:
+  title: "라이선스"
+  gpl_v3_only_notice: "GPL-3.0-only 라이선스 전문"
+
+tl_updater:
+  title: "업데이트 중..."
+  title_mod: "애드온 업데이트 중..."
+  checking: "확인 중..."
+  warning: "업데이트 중에는 번역이 작동하지 않습니다"
+
+config_editor:
+  title: "설정 편집기"
+  general_tab: "\ue8b9 일반"
+  graphics_tab: "\ueb97 그래픽"
+  gameplay_tab: "\ue30f 게임플레이"
+  advanced_tab: "\ue8b8 고급"
+  advanced_settings_heading: "고급"
+  experimental_settings_heading: "실험적"
+  developer_settings_heading: "개발자"
+  language: "언어"
+  restore_defaults: "기본값으로 초기화"
+  disable_overlay: "오버레이 비활성화 (GUI)"
+  disable_overlay_warning: >-
+    이 옵션은 게임을 재시작한 후 Hachimi 오버레이를 비활성화합니다.
+    비활성화 후에는 설정 편집기에 접근할 수 없게 됩니다.
+    의도하지 않은 경우 이 대화상자를 닫고 옵션을 비활성화하세요.
+  ipv4_only: "IPv4 ureq만 사용"
+  meta_index_url: "번역 메타 URL"
+  debug_mode: "디버그 모드"
+  enable_file_logging: "파일 로그 활성화"
+  apply_atlas_workaround: "TL 아틀라스 임시 해결책 적용"
+  disable_outdated_asset_notif: "에셋 구버전 알림 비활성화"
+  translator_mode: "번역자 모드"
+  skip_first_time_setup: "초기 설정 건너뛰기"
+  lazy_translation_updates: "지연 번역 업데이트"
+  disable_auto_update_check: "자동 업데이트 확인 비활성화"
+  bg_update_mode: "백그라운드 업데이트 모드"
+  bg_update_periodic: "주기적 확인 (알림 표시)"
+  bg_update_silent: "무음 (자동 업데이트)"
+  bg_update_interval: "백그라운드 업데이트 주기"
+  bg_update_interval_unit: "분"
+  disable_mod_downloads: "애드온 다운로드 비활성화"
+  translation_repo_index_mod: "번역 애드온 인덱스 URL"
+  disable_translations: "번역 비활성화"
+  enable_ipc: "IPC 활성화"
+  ipc_listen_all: "IPC 모든 연결 허용"
+  auto_translate_stories: "스토리 자동 번역"
+  auto_tl_warning: >-
+    참고: 이 기능은 독립적으로 작동하지 않으며 외부 설정이 필요합니다.
+    py3translationServer 또는 Sugoi Toolkit과 같은 호환 번역 서버가
+    컴퓨터에 설치되어 있거나 클라우드 API로 노출되어 있어야 합니다.
+    서버가 실행되지 않으면 추가 번역이 이루어지지 않으며 게임플레이에 영향을 줄 수 있습니다.
+    번역 서버가 없다면 이 옵션을 비활성화 상태로 두세요.
+  auto_translate_ui: "UI 자동 번역"
+  auto_translate_ui_desc: "UI가 깨질 수 있습니다"
+  notification_tp: "TP 완전 회복 알림"
+  notification_rp: "RP 완전 회복 알림"
+  notification_jobs: "알바 완료 알림"
+  taskbar_show_progress_on_download: "다운로드 시 작업 표시줄 진행률 표시"
+  taskbar_show_progress_on_connecting: "연결 시 작업 표시줄 진행률 표시"
+  dump_msgpack: "MsgPack 응답 덤프"
+  dump_msgpack_request: "MsgPack 요청 덤프"
+  msgpack_notifier: "MsgPack 알림 활성화"
+  msgpack_notifier_request: "알림에 요청 포함"
+  msgpack_notifier_host: "알림 수신 호스트 URL"
+  msgpack_notifier_print_error: "HTTP 오류 콘솔 출력"
+  target_fps: "목표 프레임률"
+  virtual_resolution_multiplier: "가상 해상도 배율"
+  ui_scale: "UI 배율"
+  gui_scale: "오버레이 배율"
+  gui_landscape_ratio: "가로 모드 오버레이 배율 비율"
+  ui_animation_scale: "UI 애니메이션 속도 배율"
+  graphics_quality: "그래픽 품질"
+  vsync: "수직동기화 (VSync)"
+  auto_full_screen: "자동 전체 화면"
+  full_screen_mode: "전체 화면 모드"
+  full_screen_mode_exclusive: "전체 화면 (Exclusive)"
+  full_screen_mode_borderless: "테두리 없는 창 (Borderless)"
+  block_minimize_in_full_screen: "전체 화면 시 최소화 방지"
+  resolution_scaling: "해상도 스케일링"
+  resolution_scaling_default: "기본값 (1080p)"
+  resolution_scaling_ssize: "화면 크기에 맞춤"
+  resolution_scaling_wsize: "창 크기에 맞춤"
+  window_always_on_top: "창 항상 위에 표시"
+  story_choice_auto_select_delay: "스토리 선택지 자동 선택 지연 시간"
+  story_text_speed_multiplier: "스토리 텍스트 속도 배율"
+  force_allow_dynamic_camera: "다이내믹 카메라 강제 허용"
+  live_theater_allow_same_chara: "라이브 시어터 동일 캐릭터 중복 허용"
+  physics_update_mode: "물리 엔진 업데이트 모드"
+  cyspring_mono_uncap_frame_scale: "CySpring Mono 프레임 스케일 언캡"
+  cyspring_disable_native: "CySpring Mono 경로 강제 사용"
+  cyspring_disable_native_desc: "네이티브 플러그인 비활성화"
+  cyspring_stiffness_force_rate_scale: "CySpring 강성 계수 스케일"
+  cyspring_drag_force_rate_scale: "CySpring 항력 계수 스케일"
+  disable_skill_name_translation: "스킬 이름 번역 비활성화"
+  disable_tap_effect: "클릭/터치 효과 비활성화"
+  hide_ingame_ui_hotkey: "인게임 UI 숨기기 단축키"
+  hide_ingame_ui_hotkey_info: >-
+    단축키로 인게임 UI를 숨길 수 있습니다.
+    Android는 화면 오른쪽 상단을 세 번 탭하세요.
+    PC/키보드는 Insert 키가 기본이며 설정에서 변경할 수 있습니다.
+  unlock_live_chara: "라이브 시어터 캐릭터/곡 해금"
+  live_slider_always_show: "라이브 재생 바 항상 표시"
+  live_playback_loop: "라이브 공연 반복 재생"
+  trainer_live_landscape: "MeniShuki 라이브 가로 모드"
+  force_orientation_mode: "화면 방향 강제 지정"
+  recommended_ui_scale: "권장 UI 배율 적용"
+  freeform_window: "자유 크기 조절 창"
+  freeform_ui_scale_auto: "자유 창에서 UI 자동 배율"
+  freeform_ui_scale_auto_ratio: "자동 UI 배율 비율"
+  free_camera: "프리 카메라"
+  taskbar_show_progress_on_schedule_book: "육성 일정표 작업 표시줄 진행률 표시"
+  champions_live_show_text: "챔피언스 미팅 라이브 텍스트 덮어쓰기"
+  champions_live_resource_id: "챔피언스 미팅 제목"
+  champions_live_year: "챔피언스 미팅 연도"
+  captions: "자막"
+  caption_font_size: "글꼴 크기"
+  caption_bg_alpha: "배경 불투명도"
+  caption_pos_x: "위치 X"
+  caption_pos_y: "위치 Y"
+  caption_color: "텍스트 색상"
+  caption_fallback_enable: "자동 줄바꿈"
+  caption_fallback_tooltip: "N글자마다 소프트 줄바꿈"
+  caption_show_logging: "자막 표시 이벤트 로그 기록"
+  caption_show_logging_tooltip: "활성화하면 자막 표시 및 이벤트 로그가 출력됩니다"
+  caption_format_logging: "자막 서식화 단계 로그 기록"
+  caption_format_logging_tooltip: "활성화하면 자막 서식화 과정이 출력됩니다"
+  caption_logging: "디버깅용 자막 텍스트 로그 기록"
+  caption_logging_tooltip: "활성화하면 자막 텍스트가 출력됩니다"
+  caption_lines_char_count: "줄당 최대 글자 수"
+  caption_outline_color: "윤곽선 색상"
+  caption_outline_size: "윤곽선 크기"
+  enable_keyboard_shortcuts: "인게임 키보드 단축키 활성화"
+  discord_rpc: "디스코드 RPC"
+  enable_smtc: "Windows 미디어 컨트롤 (SMTC) 활성화"
+  unavailable_wine_proton: "Wine/Proton 환경에서는 사용할 수 없음"
+  menu_open_key: "메뉴 열기 단축키"
+  menu_open_key_set: "설정"
+  msaa: "MSAA 안티앨리어싱"
+  render_scale: "렌더링 배율"
+  aniso_level: "이방성 필터링"
+  live_vocals_swap: "라이브 보컬 교체"
+  live_vocals_swap_character_n: "캐릭터 %{index}"
+  skill_info_dialog: "커스텀 스킬 정보 대화상자"
+  homescreen_bgseason: "홈 화면 배경 계절"
+  shadow_resolution: "그림자 해상도"
+  text_debug: "텍스트 디버그 모드"
+  text_log: "처리된 텍스트 로그 기록"
+  text_property_dump: "UI 속성 덤프"
+  text_localize_dump: "로컬라이즈 문자열 덤프"
+  text_position_debug: "위치 오프셋 로그 기록"
+  text_path_debug: "UI 경로 로그 기록"
+  sugoi_url: "자동 번역 서버 URL"
+  hide_now_loading: "로딩 화면 숨기기"
+  replace_to_builtin_font: "내장 글꼴로 대체"
+  custom_title_name: "커스텀 창 제목"
+  msgpack_notifier_connection_timeout_ms: "알림 연결 타임아웃 (ms)"
+  hide_ingame_ui_hotkey_bind: "UI 숨기기 단축키"
+  race_playback_slider: "레이스 다시보기 탐색 바"
+  race_playback_button: "레이스 다시보기 일시정지/재개 버튼"
+  race_playback_key_enable: "레이스 다시보기 일시정지/재개 단축키 사용"
+  race_playback_key: "레이스 다시보기 일시정지/재개 단축키"
+  ui_loading_show_orientation_guide: "로딩 시 화면 방향 가이드 표시"
+  full_screen_res: "커스텀 전체 화면 해상도"
+  landscape: "가로 모드"
+  portrait: "세로 모드"
+  localized_data_dir: "로컬라이즈 데이터 디렉터리"
+  hook_libc_dlopen: "libc dlopen 후킹 강제 사용 (Waydroid/에뮬레이터)"
+  keep_screen_on: "화면 꺼짐 방지"
+
+theme_editor:
+  title: "테마 설정"
+  seed_color: "기본 색상 (Seed Color)"
+  theme_mode: "테마 모드"
+  dark: "어둡게 (Dark)"
+  light: "밝게 (Light)"
+  contrast_level: "대비 수준"
+  normal: "보통 (Normal)"
+  medium: "중간 (Medium)"
+  high: "높음 (High)"
+  scheme_mode: "색상 구성표"
+  auto: "자동 (기본 색상 기준)"
+  manual: "수동"
+  manual_colors: "색상 직접 지정"
+  primary: "주요 색상 (Primary)"
+  surface: "배경 색상 (Surface)"
+  on_surface: "글자 색상 (On Surface)"
+  transparency: "배경 투명도"
+  corner_radius: "모서리 둥글기"
+  translucency_method: "반투명 효과 방식"
+  translucency_none: "없음"
+  translucency_overlay: "플로팅 카드"
+  translucency_full: "전체"
+
+tl_update_dialog:
+  title: "새 업데이트 사용 가능"
+  content: "새로운 번역 업데이트가 있습니다 (%{size}). 다운로드하시겠습니까?"
+  content_zip_warning: "새로운 번역 업데이트가 있습니다 (%{changed_size}). 이 업데이트는 전체 아카이브(%{download_size})를 다운로드합니다."
+  title_mod: "새 애드온 업데이트 사용 가능"
+  content_mod: "새로운 번역 애드온 업데이트가 있습니다 (%{size}). 다운로드하시겠습니까?"
+
+update_prompt_dialog:
+  title: "새 업데이트 사용 가능"
+  content: |
+    새로운 Hachimi 업데이트가 있습니다 (%{version}). 설치하시겠습니까?
+    업데이트를 적용하기 위해 게임이 재시작됩니다.
+  android_content: |
+    새로운 Hachimi Edge 업데이트가 있습니다 (%{version}). 설치하시겠습니까?
+
+    "예"를 눌러 UmaPatcher Edge를 열고 현재 게임을 다시 패치하세요.
+    (게임 전체 또는 APK를 다시 다운로드할 필요가 없습니다. UmaPatcher Edge는 항상 최신 Hachimi Edge를 다운로드하므로 평소처럼 패치만 하면 됩니다.)
+
+updating_dialog:
+  title: "업데이트 중"
+  content: "업데이트 다운로드 중입니다. 곧 게임이 재시작됩니다..."
+
+steam_overlay_conflict_dialog:
+  title: "알림"
+  content: >-
+    Hachimi 오버레이가 활성화된 상태에서는 결제가 작동하지 않을 수 있습니다. Steam 오버레이가 이미 결제를 위해 표시되었다면
+    이 메시지를 무시하고 아니오를 누르세요. 작동하지 않았다면 예를 눌러 Hachimi 오버레이를 일시적으로 비활성화하세요.
+    게임이 종료되며, 다음 실행 시 Hachimi 오버레이가 비활성화된 상태로 결제를 진행할 수 있습니다. 이후 게임을 다시 시작하면 오버레이가 재활성화됩니다.
+key_names:
+  left: "왼쪽 화살표"
+  right: "오른쪽 화살표"
+  up: "위쪽 화살표"
+  down: "아래쪽 화살표"
+  insert: "Insert"
+  delete: "Delete"
+  home: "Home"
+  end: "End"
+  page_up: "Page Up"
+  page_down: "Page Down"
+  escape: "Escape"
+  tab: "Tab"
+  enter: "Enter"
+  space: "Space"
+  backspace: "Backspace"
+  clear: "Clear"
+  pause: "Pause"
+  caps_lock: "Caps Lock"
+  scroll_lock: "Scroll Lock"
+  num_lock: "Num Lock"
+  print_screen: "Print Screen"
+  left_win: "왼쪽 Windows"
+  right_win: "오른쪽 Windows"
+  apps: "메뉴"
+  alt: "Alt"
+  ctrl: "Ctrl"
+  shift: "Shift"
+  numpad_0: "Numpad 0"
+  numpad_1: "Numpad 1"
+  numpad_2: "Numpad 2"
+  numpad_3: "Numpad 3"
+  numpad_4: "Numpad 4"
+  numpad_5: "Numpad 5"
+  numpad_6: "Numpad 6"
+  numpad_7: "Numpad 7"
+  numpad_8: "Numpad 8"
+  numpad_9: "Numpad 9"
+  numpad_add: "Numpad +"
+  numpad_subtract: "Numpad -"
+  numpad_multiply: "Numpad *"
+  numpad_divide: "Numpad /"
+  numpad_decimal: "Numpad ."
+  dpad_up: "D-Pad 상"
+  dpad_down: "D-Pad 하"
+  dpad_left: "D-Pad 좌"
+  dpad_right: "D-Pad 우"
+  back: "뒤로"
+  volume_up: "볼륨 상"
+  volume_down: "볼륨 하"
+  copy: "복사"
+  cut: "잘라내기"
+  paste: "붙여넣기"
+  semicolon: "세미콜론"
+  comma: "쉼표"
+  backslash: "역슬래시"
+  slash: "슬래시"
+  left_bracket: "["
+  right_bracket: "]"
+  grave: "억음 부호"
+  minus: "빼기"
+  period: "마침표"
+  plus: "더하기"
+  equals: "등호"
+  unknown: "키 %{code}"
+free_camera:
+  enable: "프리 카메라 활성화"
+  settings_title: "프리 카메라 설정"
+  section_general: "일반"
+  section_live: "라이브 시어터"
+  section_race: "레이스"
+  section_keybinds: "Windows 단축키"
+  remove_camera_effects: "카메라 특수효과 제거"
+  live_remove_screen_effects: "화면 특수효과 제거"
+  live_disable_character_teleport: "캐릭터 순간이동 비활성화"
+  live_force_all_characters_visible: "모든 캐릭터 항상 표시"
+  show_overlay: "전환 오버레이 표시"
+  selfie_use_head_transform: "캐릭터 추적 시 셀카봉 모드 사용"
+  mode: "카메라 모드"
+  mode_free: "자유 이동 (Free)"
+  mode_first_person: "1인칭 시점 (First Person)"
+  mode_selfie_stick: "캐릭터 추적"
+  live_move_step: "라이브 이동 단위"
+  race_move_step: "레이스 이동 단위"
+  look_step: "시점 회전 단위"
+  mouse_speed: "마우스 속도"
+  live_fov: "라이브 FOV"
+  race_fov: "레이스 FOV"
+  gamepad_deadzone: "게임패드 데드존"
+  gamepad_move_speed: "게임패드 이동 속도"
+  gamepad_look_speed: "게임패드 시점 속도"
+  live_target_position: "라이브 대상 위치"
+  live_target_part: "라이브 대상 신체 부위"
+  live_selfie_horizontal_stabilization: "라이브 가로 추적 데드존"
+  live_selfie_vertical_stabilization: "라이브 세로 추적 데드존"
+  live_follow_offset: "라이브 추적 오프셋"
+  live_follow_lookat_offset: "라이브 시선 오프셋"
+  live_follow_smooth: "라이브 부드러운 추적"
+  live_follow_smooth_lookat_step: "라이브 시선 스무딩"
+  live_follow_smooth_pos_step: "라이브 위치 스무딩"
+  live_first_person_offset: "라이브 1인칭 오프셋"
+  race_target_index: "레이스 대상 번호 (-1 = 자동)"
+  race_follow_offset: "레이스 추적 오프셋"
+  race_follow_distance: "레이스 추적 거리"
+  race_first_person_lookat_offset: "레이스 시선 오프셋"
+  overlay_mode: "모드: %{mode}"
+  overlay_target: "대상: %{target}"
+  overlay_part: "부위: %{part}"
+  target_auto: "자동"
+  target_gate: "%{index}번 게이트"
+  key_move_forward: "앞으로 이동"
+  key_move_back: "뒤로 이동"
+  key_move_left: "왼쪽으로 이동"
+  key_move_right: "오른쪽으로 이동"
+  key_move_down: "아래로 이동"
+  key_move_up: "위로 이동"
+  key_look_up: "위 보기"
+  key_look_down: "아래 보기"
+  key_look_left: "왼쪽 보기"
+  key_look_right: "오른쪽 보기"
+  key_fov_increase: "FOV 확대"
+  key_fov_decrease: "FOV 축소"
+  key_follow_offset_up: "추적 오프셋 위로"
+  key_follow_offset_down: "추적 오프셋 아래로"
+  key_follow_offset_left: "추적 오프셋 왼쪽으로"
+  key_follow_offset_right: "추적 오프셋 오른쪽으로"
+  key_target_previous: "이전 대상"
+  key_target_next: "다음 대상"
+  key_part_previous: "이전 신체 부위"
+  key_part_next: "다음 신체 부위"
+  key_reset: "카메라 위치 초기화"
+  key_cycle_mode: "모드 전환"
+  key_reverse: "추적 카메라 시점 반전 (앞 <-> 뒤)"
+  cheatsheet_title: "프리 카메라 조작 가이드"
+  cheatsheet_contents: |
+    # 프리 카메라 조작 가이드
+    이 기능은 **레이스** 또는 **라이브 콘서트**에서만 동작합니다.
+
+    기본 신체 부위는 **얼굴(Face)**입니다.
+
+    기본 대상은 **Place01**입니다.
+
+    ## 마우스 조작
+    * **우클릭 드래그:** 시점 둘러보기
+    * **휠 위 / 아래:** FOV 확대 / 축소
+
+    ---
+
+    ## 게임패드 조작 (Xbox / PlayStation)
+
+    ### **이동 및 시점**
+    * **왼쪽 조이스틱:** 전후좌우 이동
+    * **오른쪽 조이스틱:** 시점 조절 (좌/우/상/하)
+    * **오른쪽 트리거 (RT / R2):** 위로 상승
+    * **왼쪽 트리거 (LT / L2):** 아래로 하강
+    * **오른쪽 숄더 / 범퍼 (RB / R1):** FOV 축소
+    * **왼쪽 숄더 / 범퍼 (LB / L1):** FOV 확대
+
+    ---
+
+    ### 버튼 기능
+    * **Y** (△): 카메라 위치 리셋
+    * **X** (□): 카메라 모드 전환
+    * **B** (○): 추적 시점 반전 *(앞 <-> 뒤, 추적 카메라 전용)*
+    * **A** (✕): 라이브 일시정지 / 재개
+
+    ---
+
+    ### 방향 패드 조작 (자유 이동 모드에서는 사용 불가)
+    * **D-Pad 우:** 다음 대상 *(추적 카메라 & 1인칭 시점)*
+    * **D-Pad 좌:** 이전 대상 *(추적 카메라 & 1인칭 시점)*
+    * **D-Pad 상:** 다음 신체 부위 *(추적 카메라 전용)*
+    * **D-Pad 하:** 이전 신체 부위 *(추적 카메라 전용)*
