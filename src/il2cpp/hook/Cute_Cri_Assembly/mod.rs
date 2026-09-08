@@ -1,6 +1,7 @@
 mod MovieManager;
 pub mod AudioControllerBase;
 pub mod AtomSourceEx;
+pub mod AudioPlayback;
 pub mod CuteAudioSource;
 pub mod CuteAudioSourcePool;
 
@@ -10,6 +11,7 @@ pub fn init() {
     MovieManager::init(image);
     AudioControllerBase::init(image);
     AtomSourceEx::init(image);
+    AudioPlayback::init(image);
     CuteAudioSource::init(image);
     CuteAudioSourcePool::init(image);
 }

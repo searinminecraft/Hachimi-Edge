@@ -99,6 +99,8 @@ pub mod AudioManager;
 // Ported from kairusds/Hachimi-Edge (additive merge)
 pub mod StoryViewTextControllerBase;
 #[cfg(target_os = "windows")]
+pub mod LandscapeUIManager;
+#[cfg(target_os = "windows")]
 pub mod StandaloneWindowResize;
 #[cfg(target_os = "windows")]
 mod GallopInput;
@@ -139,12 +141,28 @@ mod RaceModelController;
 mod RaceViewBase;
 #[cfg(target_os = "windows")]
 mod RaceEffectManager;
-#[cfg(target_os = "windows")]
-mod HorseData;
-#[cfg(target_os = "windows")]
+pub mod HorseData;
 pub mod HorseRaceInfo;
 #[cfg(target_os = "windows")]
 mod HorseRaceInfoReplay;
+pub mod JikkyoControllerBase;
+pub mod Jikkyo;
+pub mod RaceBGMController;
+pub mod RaceMainViewController;
+pub mod RaceManager;
+pub mod RaceManagerReplayBase;
+pub mod RaceEventPlayer;
+pub mod RaceHorseManagerBase;
+pub mod RaceHorseManagerReplay;
+pub mod RaceSoundReplay;
+pub mod RaceUI;
+pub mod RaceUIMiniMap;
+pub mod RaceViewReplay;
+pub mod RaceSimulateData;
+pub mod RaceSimulateEventData;
+pub mod RaceSimulateReader;
+pub mod SimulateEventType;
+pub mod SkillManager;
 #[cfg(target_os = "windows")]
 mod PartsScheduleBookAutoPlayScreen;
 pub mod PartsNickNameRibbon;
@@ -298,11 +316,29 @@ pub fn init() {
         RaceModelController::init(image);
         RaceViewBase::init(image);
         RaceEffectManager::init(image);
-        HorseData::init(image);
-        HorseRaceInfo::init(image);
         HorseRaceInfoReplay::init(image);
         PartsScheduleBookAutoPlayScreen::init(image);
+        LandscapeUIManager::init(image);
     }
+    HorseData::init(image);
+    HorseRaceInfo::init(image);
+    JikkyoControllerBase::init(image);
+    Jikkyo::init(image);
+    RaceBGMController::init(image);
+    RaceMainViewController::init(image);
+    RaceManager::init(image);
+    RaceManagerReplayBase::init(image);
+    RaceEventPlayer::init(image);
+    RaceSoundReplay::init(image);
+    RaceUI::init(image);
+    RaceUIMiniMap::init(image);
+    RaceViewReplay::init(image);
+    RaceHorseManagerBase::init(image);
+    RaceHorseManagerReplay::init(image);
+    RaceSimulateData::init(image);
+    RaceSimulateEventData::init(image);
+    RaceSimulateReader::init(image);
+    SkillManager::init(image);
     MasterCharacterSystemText::init(image);
     Notification::init(image);
     PartsNickNameRibbon::init(image);

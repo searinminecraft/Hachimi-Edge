@@ -139,6 +139,126 @@ pub static GUI_INPUT_ACTIVE: AtomicBool = AtomicBool::new(false);
 pub static IS_LIVE_SCENE: AtomicBool = AtomicBool::new(false);
 pub static IS_LIVE_SLIDER_ACTIVE: AtomicBool = AtomicBool::new(false);
 static LIVE_SLIDER_SCENE_HANDLE: atomic::AtomicI32 = atomic::AtomicI32::new(-1);
+
+static RACE_SLIDER_DRAGGING: AtomicBool = AtomicBool::new(false);
+static RACE_SLIDER_PENDING: AtomicBool = AtomicBool::new(false);
+static RACE_SLIDER_TARGET_TIME: AtomicU32 = AtomicU32::new(0);
+static RACE_SLIDER_END_REQUESTED: AtomicBool = AtomicBool::new(false);
+static RACE_SLIDER_PAUSE_DEPTH: AtomicI32 = AtomicI32::new(0);
+pub static RACE_SLIDER_LAST_APPLIED: AtomicU32 = AtomicU32::new(0);
+pub static RACE_SLIDER_DRAG_START_TIME: AtomicU32 = AtomicU32::new(0);
+static RACE_SLIDER_SEEK_FAULTED: AtomicBool = AtomicBool::new(false);
+pub static RACE_SLIDER_MUSIC_TIME: AtomicU32 = AtomicU32::new(0);
+pub static RACE_SLIDER_MUSIC_VALID: AtomicBool = AtomicBool::new(false);
+
+pub fn race_slider_drain() {
+    use crate::il2cpp::hook::umamusume::{AudioManager, RaceManager, RaceManagerReplayBase};
+
+    let end_requested = RACE_SLIDER_END_REQUESTED.swap(false, atomic::Ordering::AcqRel);
+    let seek_pending = RACE_SLIDER_PENDING.swap(false, atomic::Ordering::AcqRel);
+
+    let race_manager = RaceManager::instance();
+    if race_manager.is_null() {
+        RACE_SLIDER_PAUSE_DEPTH.swap(0, atomic::Ordering::AcqRel);
+        return;
+    }
+
+    if !end_requested && !seek_pending { return; }
+
+    if RaceManagerReplayBase::IsCutInPlayingOrReserved(race_manager) {
+        if seek_pending { RACE_SLIDER_PENDING.store(true, atomic::Ordering::Release); }
+        if end_requested { RACE_SLIDER_END_REQUESTED.store(true, atomic::Ordering::Release); }
+        return;
+    }
+
+    let mut settle_target: Option<f32> = None;
+    if seek_pending {
+        let target_time = f32::from_bits(RACE_SLIDER_TARGET_TIME.load(atomic::Ordering::Acquire));
+        if RaceManagerReplayBase::seek_sync(target_time) {
+            RACE_SLIDER_LAST_APPLIED.store(target_time.to_bits(), atomic::Ordering::Release);
+            RACE_SLIDER_SEEK_FAULTED.store(false, atomic::Ordering::Release);
+            settle_target = Some(target_time);
+        } else {
+            RACE_SLIDER_SEEK_FAULTED.store(true, atomic::Ordering::Release);
+        }
+    } else if !RACE_SLIDER_SEEK_FAULTED.load(atomic::Ordering::Acquire) {
+        settle_target = Some(f32::from_bits(RACE_SLIDER_LAST_APPLIED.load(atomic::Ordering::Acquire)));
+    }
+
+    if end_requested {
+        let pause_depth = RACE_SLIDER_PAUSE_DEPTH.swap(0, atomic::Ordering::AcqRel);
+        if pause_depth > 0 {
+            if RACE_SLIDER_SEEK_FAULTED.swap(false, atomic::Ordering::AcqRel) {
+            } else {
+                let start_time = f32::from_bits(RACE_SLIDER_DRAG_START_TIME.load(atomic::Ordering::Acquire));
+                if AudioManager::resync_race_music(race_manager, settle_target.unwrap_or(start_time)) {
+                    RaceManagerReplayBase::ResumeRace(race_manager);
+                }
+            }
+        }
+    }
+}
+
+#[cfg(target_os = "windows")]
+const WINDOWS_SPLIT_LEFT_RATIO: f32 = 148.0 / 1920.0;
+#[cfg(target_os = "windows")]
+const WINDOWS_SPLIT_CENTER_RATIO: f32 = 810.0 / 1920.0;
+
+#[cfg(target_os = "windows")]
+fn split_rect_constants(window: egui::Vec2) -> egui::Rect {
+    let x = window.x * WINDOWS_SPLIT_LEFT_RATIO;
+    let w = window.x * WINDOWS_SPLIT_CENTER_RATIO;
+    egui::Rect::from_min_size(egui::pos2(x, 0.0), egui::vec2(w, window.y))
+}
+
+#[cfg(target_os = "windows")]
+fn split_rect_sane(rect: egui::Rect, window: egui::Vec2) -> bool {
+    rect.width() > 0.0
+        && rect.height() > 0.0
+        && rect.min.x >= -1.0
+        && rect.min.y >= -1.0
+        && rect.max.x <= window.x * 1.02
+        && rect.max.y <= window.y * 1.02
+        && rect.width() * rect.height() >= window.x * window.y * 0.15
+}
+
+#[cfg(target_os = "windows")]
+fn windows_split_game_view(screen: egui::Rect, ppp: f32) -> Option<(egui::Rect, &'static str)> {
+    use crate::il2cpp::hook::umamusume::{LandscapeUIManager, Screen as GallopScreen};
+
+    if !GallopScreen::get_IsSplitWindow() {
+        return None;
+    }
+
+    let window = egui::vec2(screen.width() * ppp, screen.height() * ppp);
+
+    let mut source = "constants";
+    let mut rect_px = split_rect_constants(window);
+
+    if let Some((x, y, w, h)) = LandscapeUIManager::game_screen_info() {
+        let physical = (h - window.y).abs() <= window.y * 0.02;
+        let rate = LandscapeUIManager::get_WindowScaleRate();
+        let (r, src) = if physical {
+            (egui::Rect::from_min_size(egui::pos2(x, y), egui::vec2(w, h)), "gamescreeninfo")
+        } else {
+            (
+                egui::Rect::from_min_size(egui::pos2(x * rate, y * rate), egui::vec2(w * rate, h * rate)),
+                "gamescreeninfo+rate",
+            )
+        };
+
+        if split_rect_sane(r, window) {
+            rect_px = r;
+            source = src;
+        }
+    }
+
+    let game_view = egui::Rect::from_min_size(
+        egui::pos2(rect_px.min.x / ppp, rect_px.min.y / ppp),
+        egui::vec2(rect_px.width() / ppp, rect_px.height() / ppp),
+    );
+    Some((game_view, source))
+}
 static DISABLED_GAME_UIS: Lazy<Mutex<FnvHashSet<SendPtr>>> =
     Lazy::new(|| Mutex::new(FnvHashSet::default()));
 static PLUGIN_MENU_ITEMS: Lazy<Mutex<Vec<PluginMenuItem>>> = Lazy::new(|| Mutex::new(Vec::new()));
@@ -672,6 +792,245 @@ impl Gui {
         }
     }
 
+    pub fn race_slider_showing() -> bool {
+        use crate::il2cpp::hook::umamusume::{HorseRaceInfo, RaceHorseManagerBase};
+
+        Hachimi::instance().config.load().race_playback_slider
+            && RaceHorseManagerBase::is_race_active()
+            && (!HorseRaceInfo::is_start_dash() || RACE_SLIDER_DRAGGING.load(atomic::Ordering::Acquire))
+            && !HorseRaceInfo::is_finished()
+    }
+
+    fn run_race_slider(&mut self, ctx: &egui::Context) {
+        use crate::il2cpp::hook::umamusume::{
+            AudioManager, RaceHorseManagerReplay,
+            RaceManager, RaceManagerReplayBase, RaceSimulateReader,
+        };
+
+        if !Self::race_slider_showing() {
+            RACE_SLIDER_DRAGGING.store(false, atomic::Ordering::Release);
+            RACE_SLIDER_PENDING.store(false, atomic::Ordering::Release);
+            RACE_SLIDER_END_REQUESTED.store(false, atomic::Ordering::Release);
+            RACE_SLIDER_PAUSE_DEPTH.store(0, atomic::Ordering::Release);
+            RACE_SLIDER_LAST_APPLIED.store(0, atomic::Ordering::Release);
+            RACE_SLIDER_DRAG_START_TIME.store(0, atomic::Ordering::Release);
+            RACE_SLIDER_SEEK_FAULTED.store(false, atomic::Ordering::Release);
+            RACE_SLIDER_MUSIC_TIME.store(0, atomic::Ordering::Release);
+            RACE_SLIDER_MUSIC_VALID.store(false, atomic::Ordering::Release);
+            return;
+        }
+
+        let race_manager = RaceManager::instance();
+        if race_manager.is_null() { return; }
+
+        let horse_manager = RaceManager::get__horseManager(race_manager);
+        if horse_manager.is_null() { return; }
+
+        if !RaceHorseManagerReplay::is_replay_manager(horse_manager) { return; }
+
+        let reader = RaceHorseManagerReplay::get__reader(horse_manager);
+        if reader.is_null() { return; }
+
+        let total = RaceSimulateReader::GetLastFrameTime(reader);
+        if total <= 0.0 { return; }
+
+        let cut_in_playing = RaceManagerReplayBase::get_IsPlayingCutIn(race_manager);
+        let interactable = !cut_in_playing;
+
+        if RACE_SLIDER_DRAGGING.load(atomic::Ordering::Acquire) && !interactable {
+            RACE_SLIDER_END_REQUESTED.store(true, atomic::Ordering::Release);
+            RACE_SLIDER_DRAGGING.store(false, atomic::Ordering::Release);
+        }
+
+        let mut current = if RACE_SLIDER_PENDING.load(atomic::Ordering::Acquire) {
+            f32::from_bits(RACE_SLIDER_TARGET_TIME.load(atomic::Ordering::Acquire))
+        } else {
+            RaceSimulateReader::get__curTime(reader)
+        };
+        if !current.is_finite() || current < 0.0 {
+            current = 0.0;
+        }
+        if current > total {
+            current = total;
+        }
+
+        let scale = get_scale(ctx);
+        let surface_container = get_global_color("surfaceContainer");
+        let on_surface_variant = get_global_color("onSurfaceVariant");
+        let cr = egui_material3::theme::get_global_corner_radius()
+            .unwrap_or(8.0)
+            .max(8.0) as u8;
+
+        let hachimi_cfg = crate::core::Hachimi::instance().config.load();
+        let fill = match hachimi_cfg.ui_translucency_mode {
+            hachimi::UiTranslucencyMode::None => surface_container,
+            hachimi::UiTranslucencyMode::Overlay | hachimi::UiTranslucencyMode::Full => {
+                let a = hachimi_cfg.ui_surface_alpha;
+                egui::Color32::from_rgba_unmultiplied(
+                    surface_container.r(),
+                    surface_container.g(),
+                    surface_container.b(),
+                    a,
+                )
+            }
+        };
+
+        let (_, safe_bottom) = get_safe_insets(ctx);
+        egui::Area::new(egui::Id::new("race_slider_area"))
+            .anchor(egui::Align2::CENTER_BOTTOM, egui::vec2(0.0, -(24.0 * scale + safe_bottom)))
+            .order(egui::Order::Foreground)
+            .show(ctx, |ui| {
+                egui::Frame::NONE
+                    .fill(fill)
+                    .corner_radius(egui::CornerRadius::same(cr))
+                    .shadow(egui::Shadow {
+                        blur: (6.0 * scale) as u8,
+                        spread: 0,
+                        offset: [0, (2.0 * scale) as i8],
+                        color: egui::Color32::from_black_alpha(36),
+                    })
+                    .inner_margin(egui::Margin::symmetric(
+                        (16.0 * scale) as i8,
+                        (6.0 * scale) as i8,
+                    ))
+                    .show(ui, |ui| {
+                        ui.set_width(ctx.content_rect().width() * 0.60);
+
+                        let curr_m = (current / 60.0).floor() as i32;
+                        let curr_s = (current % 60.0).floor() as i32;
+                        let tot_m = (total / 60.0).floor() as i32;
+                        let tot_s = (total % 60.0).floor() as i32;
+
+                        let time_font = egui::FontId::new(
+                            10.5 * scale,
+                            egui::FontFamily::Proportional,
+                        );
+
+                        ui.with_layout(egui::Layout::left_to_right(egui::Align::Center), |ui| {
+                            ui.add(egui::Label::new(
+                                egui::RichText::new(format!("{:02}:{:02}", curr_m, curr_s))
+                                    .font(time_font.clone())
+                                    .color(on_surface_variant),
+                            ));
+
+                            let label_w = 28.0 * scale;
+                            let slider_w = (ui.available_width() - label_w
+                                - ui.spacing().item_spacing.x * 2.0)
+                                .max(40.0);
+
+                            ui.spacing_mut().slider_width = slider_w;
+
+                            let slider = MaterialSlider::new(&mut current, 0.0..=total)
+                                .show_value(false)
+                                .show_value_indicator(true)
+                                .width(slider_w);
+                            let res = if interactable {
+                                ui.add(slider)
+                            } else {
+                                ui.add_enabled(false, slider)
+                            };
+
+                            if res.drag_started() {
+                                let race_manager = RaceManager::instance();
+                                if race_manager.is_null() { return; }
+                                let start_time = RaceSimulateReader::replay_cur_time(race_manager).unwrap_or(0.0);
+
+                                RACE_SLIDER_DRAG_START_TIME.store(start_time.to_bits(), atomic::Ordering::Release);
+                                RACE_SLIDER_LAST_APPLIED.store(start_time.to_bits(), atomic::Ordering::Release);
+                                RACE_SLIDER_MUSIC_VALID.store(
+                                    AudioManager::race_slider_music_base(),
+                                    atomic::Ordering::Release,
+                                );
+
+                                if !RaceManagerReplayBase::IsPaused(race_manager) {
+                                    RaceManagerReplayBase::PauseRace(race_manager);
+                                    RACE_SLIDER_PAUSE_DEPTH.fetch_add(1, atomic::Ordering::AcqRel);
+                                }
+                                RACE_SLIDER_DRAGGING.store(true, atomic::Ordering::Release);
+                            }
+
+                            if res.changed() {
+                                RACE_SLIDER_TARGET_TIME.store(current.to_bits(), atomic::Ordering::Release);
+                                RACE_SLIDER_PENDING.store(true, atomic::Ordering::Release);
+                            }
+
+                            if res.drag_stopped() && RACE_SLIDER_DRAGGING.swap(false, atomic::Ordering::AcqRel) {
+                                RACE_SLIDER_END_REQUESTED.store(true, atomic::Ordering::Release);
+                            }
+
+                            ui.add(egui::Label::new(
+                                egui::RichText::new(format!("{:02}:{:02}", tot_m, tot_s))
+                                    .font(time_font)
+                                    .color(on_surface_variant),
+                            ));
+                        });
+                    });
+            });
+    }
+
+    pub fn race_playback_button_showing() -> bool {
+        use crate::il2cpp::hook::umamusume::{HorseRaceInfo, RaceHorseManagerBase};
+
+        Hachimi::instance().config.load().race_playback_button
+            && RaceHorseManagerBase::is_race_active()
+            && !HorseRaceInfo::is_start_dash()
+            && !HorseRaceInfo::is_finished()
+    }
+
+    fn run_race_playback_button(ctx: &egui::Context) {
+        use crate::il2cpp::hook::umamusume::{RaceManager, RaceManagerReplayBase};
+
+        if !Self::race_playback_button_showing() {
+            return;
+        }
+
+        let race_manager = RaceManager::instance();
+        if race_manager.is_null() { return; }
+
+        let scale = get_scale(ctx);
+        let screen = ctx.viewport_rect();
+
+        #[cfg(target_os = "windows")]
+        let game_view = match windows_split_game_view(screen, ctx.pixels_per_point()) {
+            Some((rect, _)) => rect,
+            None => screen,
+        };
+        #[cfg(target_os = "android")]
+        let game_view = screen;
+
+        let paused = RaceManagerReplayBase::IsPaused(race_manager);
+        let interactable = !RaceManagerReplayBase::playback_gated(race_manager);
+
+        let btn_size = 24.0 * scale;
+        let margin = 12.0 * scale;
+        let btn_pos = egui::Pos2::new(
+            game_view.left() + margin,
+            game_view.center().y - btn_size / 2.0,
+        );
+
+        // fa-play when paused (\u{f04b}), fa-pause while running (\u{f04c})
+        let icon = if paused { "\u{f04b}" } else { "\u{f04c}" };
+
+        egui::Area::new(egui::Id::new("race_playback_button_area"))
+            .fixed_pos(btn_pos)
+            .order(egui::Order::Foreground)
+            .show(ctx, |ui| {
+                let btn = egui::Button::new(
+                    egui::RichText::new(icon).size(16.0 * scale),
+                ).min_size(egui::Vec2::new(btn_size, btn_size));
+
+                let res = if interactable {
+                    ui.add(btn)
+                } else {
+                    ui.add_enabled(false, btn)
+                };
+
+                if res.clicked() {
+                    Thread::main_thread().schedule(RaceManagerReplayBase::toggle_playback);
+                }
+            });
+    }
+
     pub fn run(&mut self) -> egui::FullOutput {
         if let Ok(mut lock) = PENDING_THEME.lock() {
             if let Some(config) = lock.take() {
@@ -853,6 +1212,8 @@ impl Gui {
 
         let ctx = self.context.clone();
         self.run_live_slider(&ctx);
+        self.run_race_slider(&ctx);
+        Self::run_race_playback_button(&ctx);
         #[cfg(target_os = "windows")]
         self.run_free_camera_overlay(&ctx);
 
@@ -861,6 +1222,8 @@ impl Gui {
             || self.context.wants_keyboard_input();
         let has_interactive_widgets =
             IS_LIVE_SLIDER_ACTIVE.load(atomic::Ordering::Relaxed) && wants_pointer;
+        let race_slider_input = Self::race_slider_showing();
+        let race_playback_button_input = Self::race_playback_button_showing();
         #[cfg(target_os = "windows")]
         let free_camera_input_capture = crate::windows::free_camera::wants_windows_input_capture();
         #[cfg(not(target_os = "windows"))]
@@ -872,11 +1235,11 @@ impl Gui {
         );
 
         IS_CONSUMING_INPUT.store(
-            self.is_consuming_input() || has_interactive_widgets || free_camera_input_capture,
+            self.is_consuming_input() || has_interactive_widgets || race_slider_input || race_playback_button_input || free_camera_input_capture,
             atomic::Ordering::Release,
         );
 
-        WANTS_INPUT.store(wants_pointer || free_camera_input_capture, atomic::Ordering::Release);
+        WANTS_INPUT.store(wants_pointer || race_slider_input || race_playback_button_input || free_camera_input_capture, atomic::Ordering::Release);
 
         self.context.end_pass()
     }

@@ -24,7 +24,6 @@ pub fn instance() -> *mut Il2CppObject {
 static mut SOFTWARERESET_ADDR: usize = 0;
 impl_addr_wrapper_fn!(SoftwareReset, SOFTWARERESET_ADDR, (), this: *mut Il2CppObject);
 
-#[cfg(target_os = "windows")]
 type GameSystemUpdateFn = extern "C" fn(this: *mut Il2CppObject);
 #[cfg(target_os = "windows")]
 fn apply_free_camera_live_pause_request() {
@@ -34,16 +33,21 @@ fn apply_free_camera_live_pause_request() {
     live_utils::toggle_live_pause();
 }
 
-#[cfg(target_os = "windows")]
 extern "C" fn GameSystem_Update(this: *mut Il2CppObject) {
-    apply_free_camera_live_pause_request();
+    crate::core::gui::race_slider_drain();
 
-    // Live and race normally tick from their camera LateUpdate hooks. Keep the
-    // global update path only as a fallback while LiveTimelineControl is paused.
-    if Director::is_live_paused() && free_camera::scene() == CameraScene::Live {
-        free_camera::tick();
+    #[cfg(target_os = "windows")]
+    {
         apply_free_camera_live_pause_request();
+
+        // Live and race normally tick from their camera LateUpdate hooks. Keep the
+        // global update path only as a fallback while LiveTimelineControl is paused.
+        if Director::is_live_paused() && free_camera::scene() == CameraScene::Live {
+            free_camera::tick();
+            apply_free_camera_live_pause_request();
+        }
     }
+
     get_orig_fn!(GameSystem_Update, GameSystemUpdateFn)(this);
 }
 
@@ -122,10 +126,11 @@ pub fn init(umamusume: *const Il2CppImage) {
         SOFTWARERESET_ADDR = get_method_addr(GameSystem, c"SoftwareReset", 0);
     }
 
+    let GameSystem_Update_addr = get_method_addr(GameSystem, c"Update", 0);
+    new_hook!(GameSystem_Update_addr, GameSystem_Update);
+
     #[cfg(target_os = "windows")]
     {
-        let GameSystem_Update_addr = get_method_addr(GameSystem, c"Update", 0);
-        new_hook!(GameSystem_Update_addr, GameSystem_Update);
         let GameSystem_LateUpdate_addr = get_method_addr(GameSystem, c"LateUpdate", 0);
         new_hook!(GameSystem_LateUpdate_addr, GameSystem_LateUpdate);
     }

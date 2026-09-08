@@ -163,6 +163,11 @@ extern "C" fn nativeInjectEvent(mut env: JNIEnv, obj: JObject, input_event: JObj
                         Thread::main_thread().schedule(Gui::toggle_game_ui);
                     }
 
+                    if pressed && key_code == Hachimi::instance().config.load().android.race_playback_key
+                        && Hachimi::instance().config.load().race_playback_key_enable {
+                        Thread::main_thread().schedule(crate::il2cpp::hook::umamusume::RaceManagerReplayBase::toggle_playback);
+                    }
+
                     if pressed && key_code == keymap::KEYCODE_BACK {
                         BACK_BUTTON_PRESSED.store(pressed, Ordering::Release);
                         if IS_IME_VISIBLE.load(Ordering::Acquire) {

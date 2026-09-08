@@ -32,6 +32,9 @@ pub fn set_Playback(this: *mut Il2CppObject, value: CriAtomExPlayback) {
     orig_fn(this, value)
 }
 
+def_method_wrapper_fn!(get_IsInUse, GET_ISINUSE_ADDR, bool, this: *mut Il2CppObject);
+def_method_wrapper_fn!(Stop, STOP_ADDR, (), this: *mut Il2CppObject, fade_out_time: f32, fade_curve: i32);
+
 pub fn init(Cute_Cri_Assembly: *const Il2CppImage) {
     get_class_or_return!(Cute_Cri_Assembly, "Cute.Cri", AtomSourceEx);
 
@@ -39,5 +42,7 @@ pub fn init(Cute_Cri_Assembly: *const Il2CppImage) {
         CLASS = AtomSourceEx;
         GET_PLAYER_ADDR   = get_method_addr(AtomSourceEx, c"get_player", 0);
         SET_PLAYBACK_ADDR = get_method_addr(AtomSourceEx, c"set_Playback", 1);
+        GET_ISINUSE_ADDR = get_method_addr(AtomSourceEx, c"get_IsInUse", 0);
+        STOP_ADDR = get_method_addr(AtomSourceEx, c"Stop", 2);
     }
 }

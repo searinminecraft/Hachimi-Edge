@@ -86,6 +86,8 @@ pub struct Config {
     pub menu_open_key: i32,
     #[serde(default = "Config::default_hide_ingame_ui_hotkey_bind")]
     pub hide_ingame_ui_hotkey_bind: i32,
+    #[serde(default = "Config::default_race_playback_key")]
+    pub race_playback_key: i32,
     #[serde(default)]
     pub load_libraries: Vec<String>,
     #[serde(default)]
@@ -103,5 +105,6 @@ pub struct Config {
 impl Config {
     fn default_menu_open_key() -> i32 { keymap::KEYCODE_DPAD_RIGHT }
     fn default_hide_ingame_ui_hotkey_bind() -> i32 { keymap::KEYCODE_INSERT }
+    fn default_race_playback_key() -> i32 { keymap::KEYCODE_P }
     fn default_gui_landscape_ratio() -> f32 { 1.0 }
 }

@@ -53,6 +53,135 @@ pub fn set__songCharaPlaybacks(this: *mut Il2CppObject, value: *mut Il2CppArray)
 static mut GET_CUE_LENGTH_ADDR: usize = 0;
 impl_addr_wrapper_fn!(GetCueLength, GET_CUE_LENGTH_ADDR, f32, this: *mut Il2CppObject, cue_sheet: *mut Il2CppString, cue_id: i32);
 
+#[repr(i32)]
+pub enum Category {
+    BGM = 0,
+    SE = 1,
+    VOICE = 2,
+    JIKKYO = 3,
+    LIVE = 4
+}
+
+def_field_value_accessors!(get__bgmPlayback, set__bgmPlayback, _BGMPLAYBACK_FIELD, crate::il2cpp::hook::Cute_Cri_Assembly::AudioPlayback::AudioPlayback_t);
+def_field_object_accessors!(get__atomSourceArrayBGM, set__atomSourceArrayBGM, _ATOMSOURCEARRAYBGM_FIELD, Il2CppArray);
+
+def_method_wrapper_fn!(GetVolume, GET_VOLUME_ADDR, f32, category: Category);
+def_method_wrapper_fn!(
+    PlayBgmFromName, PLAY_BGM_FROM_NAME_ADDR, (),
+    this: *mut Il2CppObject, cue_name: *mut *mut Il2CppString, is_loop: bool, volume: f32,
+    fade_in_time: f32, fade_out_time: f32, start_time: f32, is_cross_fade: bool, stop_type: i32
+);
+
+pub fn race_slider_music_base() -> bool {
+    let audio_manager = instance();
+    if audio_manager.is_null() { return false; }
+
+    let mut bgm = get__bgmPlayback(audio_manager);
+    if bgm.criAtomExPlayback.id == 0 { return false; }
+
+    let mut num_samples: i64 = 0;
+    let mut sampling_rate: i32 = 0;
+    if !crate::il2cpp::hook::Cute_Cri_Assembly::AudioPlayback::GetNumPlayedSamples(&mut bgm, &mut num_samples, &mut sampling_rate) {
+        return false;
+    }
+    if sampling_rate <= 0 { return false; }
+
+    let secs = num_samples as f32 / sampling_rate as f32;
+    if !secs.is_finite() || secs < 0.0 { return false; }
+
+    crate::core::gui::RACE_SLIDER_MUSIC_TIME.store(secs.to_bits(), std::sync::atomic::Ordering::Release);
+    true
+}
+
+pub fn play_race_bgm_cue(cue_name: *mut Il2CppString, position_secs: f32, bgm_volume: f32) -> bool {
+    let audio_manager = instance();
+    if audio_manager.is_null() { return false; }
+    if cue_name.is_null() { return false; }
+
+    let position = if position_secs.is_finite() && position_secs > 0.0 { position_secs } else { 0.0 };
+    let volume = if bgm_volume.is_finite() && bgm_volume >= 0.0 { bgm_volume } else { 1.0 };
+    let mut cue_name = cue_name;
+    PlayBgmFromName(
+        audio_manager, &mut cue_name, true, volume, 0.1, 0.1, position, false, 0
+    );
+    true
+}
+
+pub fn resync_race_music(race_manager: *mut Il2CppObject, target_time: f32) -> bool {
+    use crate::il2cpp::hook::Cute_Cri_Assembly::AtomSourceEx;
+    use crate::il2cpp::hook::umamusume::{RaceBGMController, RaceManager, RaceSoundReplay};
+    use crate::core::utils::{race_seek_seh, race_seek_stage};
+    use std::sync::atomic::Ordering;
+
+    let race_sound = RaceManager::get_RaceSound(race_manager);
+    if !RaceSoundReplay::is_replay_sound(race_sound) { return true; }
+
+    let bgm_controller = RaceSoundReplay::get_BGMController(race_sound);
+    if !RaceBGMController::is_bgm_controller(bgm_controller) { return true; }
+
+    race_seek_seh(|| {
+        race_seek_stage(12); // music_volume
+        let bgm_volume = RaceSoundReplay::GetBGMVolume(race_sound);
+        let second_start = RaceBGMController::get_secondBgmStartTime(bgm_controller);
+        let race_base = f32::from_bits(crate::core::gui::RACE_SLIDER_DRAG_START_TIME.load(Ordering::Acquire));
+        let music_valid = crate::core::gui::RACE_SLIDER_MUSIC_VALID.load(Ordering::Acquire);
+        let music_base = f32::from_bits(crate::core::gui::RACE_SLIDER_MUSIC_TIME.load(Ordering::Acquire));
+
+        let audio_manager = instance();
+        if audio_manager.is_null() { return; }
+
+        let sources_ptr = get__atomSourceArrayBGM(audio_manager);
+        if sources_ptr.is_null() { return; }
+        let sources: crate::il2cpp::symbols::Array<*mut Il2CppObject> = crate::il2cpp::symbols::Array::from(sources_ptr);
+
+        race_seek_stage(13); // music_sweep
+        for source in unsafe { sources.as_slice() }.iter() {
+            if source.is_null() { continue; }
+            if !AtomSourceEx::get_IsInUse(*source) { continue; }
+            AtomSourceEx::Stop(*source, 0.0, 0);
+        }
+
+        race_seek_stage(14); // music_play_cue
+        if second_start.is_finite() && second_start > 0.0 && target_time >= second_start {
+            let position = if race_base >= second_start && music_valid {
+                music_base + (target_time - race_base)
+            } else {
+                target_time - second_start
+            };
+            play_race_bgm_cue(RaceBGMController::get_secondBgmCueName(bgm_controller), position, bgm_volume);
+            RaceBGMController::set_isRequestFirstBGM(bgm_controller, true);
+            RaceBGMController::set_isStoppedFirstBGM(bgm_controller, true);
+            RaceBGMController::set_isPlayedSecondBGM(bgm_controller, true);
+        } else {
+            let delay = RaceBGMController::get_firstBGMDelayTime(bgm_controller);
+            let first_stop = RaceBGMController::get_firstBgmStopTime(bgm_controller);
+    
+            if target_time >= delay {
+                let position = if race_base < first_stop && music_valid {
+                    music_base + (target_time - race_base)
+                } else {
+                    target_time - delay
+                };
+                play_race_bgm_cue(RaceBGMController::get_firstBgmCueName(bgm_controller), position, bgm_volume);
+                RaceBGMController::set_isRequestFirstBGM(bgm_controller, true);
+                RaceBGMController::set_isStoppedFirstBGM(bgm_controller, false);
+            } else {
+                RaceBGMController::set_isRequestFirstBGM(bgm_controller, false);
+                RaceBGMController::set_isStoppedFirstBGM(bgm_controller, false);
+            }
+            RaceBGMController::set_isPlayedSecondBGM(bgm_controller, false);
+        }
+
+        if (crate::core::Hachimi::instance().game.region == crate::core::game::Region::Japan || crate::core::Hachimi::instance().game.region == crate::core::game::Region::Taiwan)
+            && RaceBGMController::is_played_first_trigger_bgm_field_valid() {
+            let trigger_start = RaceBGMController::get_firstTriggerBgmPlayStartTime(bgm_controller);
+            RaceBGMController::set_isPlayedFirstTriggerBgm(bgm_controller, target_time >= trigger_start);
+        }
+
+        race_seek_stage(0); // idle
+    })
+}
+
 // Cute.Cri.Audio RequestCueInfo
 #[repr(C)]
 #[derive(Clone, Copy, PartialEq)]
@@ -84,19 +213,11 @@ struct CstEntry {
 // Group 1 — Cue name patterns
 // Any cue whose name contains one of these substrings is suppressed.
 const SUPPRESS_CUE_NAME_PATTERNS: &[&str] = &[
-    "snd_voi_story",
-    "story_",
-    "chara_story",
-    "arc_story",
-    "snd_voi_evt",
-    "evt_",
-    "_gallery_",
     "_home_",
     "_tc_",
     "_title_",
     "_kakao_",
     "_gacha_",
-    "_factorresearch_",
 ];
 
 // Group 2 — Voice ID blocklist
@@ -118,67 +239,26 @@ const EXCEPT_TRAINING_SCENE_ALLOWED_VIEW_IDS: &[i32] = &[ViewId::ChampionsLobby 
 // Group 5 — View ID filter exceptions
 const EXCEPT_VIEW_IDS: &[i32] = &[
     ViewId::CharacterNoteMain as i32, // 5212: Archive — Voices
+    ViewId::RouletteDerby as i32,     // 8103: Prize Derby / Event Roulette
+    ViewId::CharacterCardLimitBreakCut as i32, // 5213: Limit Break / Potential
 ];
 
 /// Returns true if captions should be suppressed for the given ViewId.
-/// Suppresses menu, story, home, challenge, and event screens where character
-/// dialogue is already presented via on-screen speech balloons.
+/// Suppresses story/visual novel views where character dialogue is already
+/// presented via native localized story textboxes.
 fn is_view_id_suppressed(view_id: i32) -> bool {
     // Whitelist / Exception views where captions must always be permitted:
-    // 5212: Character Note / Archive Voice Library
-    if view_id == ViewId::CharacterNoteMain as i32 {
+    if view_id == ViewId::CharacterNoteMain as i32
+        || view_id == ViewId::RouletteDerby as i32
+        || view_id == ViewId::CharacterCardLimitBreakCut as i32
+    {
         return false;
     }
 
     match view_id {
-        // Home views (100: Home, 101: HomeHub)
-        id if (ViewId::Home as i32..=199).contains(&id) => true,
-
-        // Gacha views (300: GachaMain, 301: GachaResult)
-        id if (ViewId::GachaMain as i32..=399).contains(&id) => true,
-
-        // Story / Episode views (3000: Story, 3100: EpisodeMain, 3200: EpisodeCharacter, 3400: EpisodeExtra)
+        // Story / Visual Novel views with native dialog textboxes
         // (excluding MainStoryPaddock 3310)
         id if (ViewId::Story as i32..=3309).contains(&id) || (3311..=3999).contains(&id) => true,
-
-        // OutGame Menus / Notes / Gallery / Profile / Mission / Catalog / Shop / Circle / RoomMatch Hubs
-        // (excluding CharacterNoteMain 5212)
-        id if (ViewId::OutGame as i32..=5211).contains(&id) || (5213..=5599).contains(&id) => true,
-
-        // Daily / Legend Race Tops (5600: DailyRace, 5620: LegendRace, 5650: DailyLegendRaceTop)
-        // (excluding Paddocks DailyRacePaddock = 5610, LegendRacePaddock = 5630)
-        id if id == ViewId::DailyRace as i32 || id == ViewId::LegendRace as i32 || id == ViewId::DailyLegendRaceTop as i32 => true,
-
-        // Menu items / Trophy / Shop / Circle / Profile Card
-        id if id == ViewId::MenuItem as i32
-            || id == ViewId::MenuTrophyRoom as i32
-            || id == ViewId::MenuShop as i32
-            || id == ViewId::Circle as i32
-            || id == ViewId::CircleProfileCard as i32 => true,
-
-        // Training Challenge / Masters Challenge (6300: Hub, 6301: Top, 6302: Leading/Ranking, 6303: SupportCardRanking)
-        id if (ViewId::TrainingChallengeHub as i32..=6399).contains(&id) => true,
-
-        // Jobs Hub / Top / Confirm / Result
-        id if (ViewId::JobsHub as i32..=ViewId::JobsResult as i32).contains(&id) => true,
-
-        // Schedule Book / Const Walking
-        id if (ViewId::ScheduleBookTop as i32..=ViewId::ConstWalkingTop as i32).contains(&id) => true,
-
-        // Crane Game
-        id if id == ViewId::CraneGame as i32 || (ViewId::CraneGameTop as i32..=ViewId::CraneGameCharacterSelect as i32).contains(&id) => true,
-
-        // Story Events, Challenge Match, Transfer, Team Building, Heroes, Collect/Raid, Factor Research, Ultimate Race, Campaigns
-        // Explicitly excluding race paddocks:
-        // - ChallengeMatchPaddock = 8160
-        // - TeamBuildingPaddock = 8260
-        // - HeroesPaddock = 8295
-        // - UltimateRacePaddock = 8361
-        id if (ViewId::StoryEventHub as i32..=8500).contains(&id)
-            && id != ViewId::ChallengeMatchPaddock as i32
-            && id != ViewId::TeamBuildingPaddock as i32
-            && id != ViewId::HeroesPaddock as i32
-            && id != ViewId::UltimateRacePaddock as i32 => true,
 
         _ => false,
     }
@@ -193,14 +273,15 @@ fn get_current_view_id() -> i32 {
 
 /// Looks up the MasterCharacterSystemText entry for the given character + cue,
 /// applying all suppression/exception rules. Returns `None` if suppressed.
-fn lookup_cst_entry(chara_id: i32, cue_id: i32, cue_name: &str) -> Option<CstEntry> {
+fn lookup_cst_entry(chara_id: i32, cue_id: i32, cue_sheet: &str, cue_name: &str) -> Option<CstEntry> {
     let do_log = captions::Captions::show_log_enabled();
 
     // ── Rule 1 — Cue name pattern (cheapest check, before any IL2CPP calls) ──
-    if let Some(&pattern) = SUPPRESS_CUE_NAME_PATTERNS.iter().find(|&&p| cue_name.contains(p)) {
+    let search_name = if !cue_name.is_empty() { cue_name } else { cue_sheet };
+    if let Some(&pattern) = SUPPRESS_CUE_NAME_PATTERNS.iter().find(|&&p| search_name.contains(p) || cue_sheet.contains(p)) {
         if do_log {
-            info!("[captions] SKIP  | cue_name={} reason=cue_name pattern \"{}\"",
-                cue_name, pattern);
+            info!("[captions] SKIP  | cue_sheet={} cue_name={} reason=cue pattern \"{}\"",
+                cue_sheet, cue_name, pattern);
         }
         return None;
     }
@@ -240,7 +321,7 @@ fn lookup_cst_entry(chara_id: i32, cue_id: i32, cue_name: &str) -> Option<CstEnt
             if item_cue_id != cue_id || item_cue_sheet_ptr.is_null() { continue; }
 
             let item_cue_sheet = unsafe { (*item_cue_sheet_ptr).as_utf16str().to_string() };
-            if !cue_name.starts_with(&item_cue_sheet) { continue; }
+            if !cue_sheet.starts_with(&item_cue_sheet) && !cue_name.starts_with(&item_cue_sheet) { continue; }
 
             if text_field.is_null() || voice_id_field.is_null() { break; }
 
@@ -255,7 +336,7 @@ fn lookup_cst_entry(chara_id: i32, cue_id: i32, cue_name: &str) -> Option<CstEnt
             if SUPPRESS_VOICE_IDS.contains(&voice_id) {
                 if do_log {
                     info!("[captions] SKIP  | chara_id={} voice_id={} cue_id={} item_cue_id={} cue_name={} reason=suppressed voice_id {}",
-                        chara_id, voice_id, cue_id, item_cue_id, cue_name, voice_id);
+                        chara_id, voice_id, cue_id, item_cue_id, search_name, voice_id);
                 }
                 break;
             }
@@ -266,7 +347,7 @@ fn lookup_cst_entry(chara_id: i32, cue_id: i32, cue_name: &str) -> Option<CstEnt
             {
                 if do_log {
                     info!("[captions] SKIP  | chara_id={} voice_id={} cue_id={} item_cue_id={} cue_name={} reason=NPC chara_id >= {} (voice_id={})",
-                        chara_id, voice_id, cue_id, item_cue_id, cue_name,
+                        chara_id, voice_id, cue_id, item_cue_id, search_name,
                         SUPPRESS_NPC_CHARA_ID_THRESHOLD, voice_id);
                 }
                 break;
@@ -276,7 +357,7 @@ fn lookup_cst_entry(chara_id: i32, cue_id: i32, cue_name: &str) -> Option<CstEnt
             // Fetch it exactly once, only when we've passed rules 1–3.
             let current_view_id = get_current_view_id();
 
-            // ── Rule 5 — Global view ID force-show ──────────────────────────
+            // ── Rule 4 — Global view ID force-show ──────────────────────────
             let force_show_view = !EXCEPT_VIEW_IDS.is_empty()
                 && EXCEPT_VIEW_IDS.contains(&current_view_id);
 
@@ -285,16 +366,16 @@ fn lookup_cst_entry(chara_id: i32, cue_id: i32, cue_name: &str) -> Option<CstEnt
             if suppressed_view {
                 if do_log {
                     info!("[captions] SKIP  | chara_id={} voice_id={} cue_id={} item_cue_id={} view_id={} cue_name={} reason=suppressed view_id {}",
-                        chara_id, voice_id, cue_id, item_cue_id, current_view_id, cue_name, current_view_id);
+                        chara_id, voice_id, cue_id, item_cue_id, current_view_id, search_name, current_view_id);
                 }
                 break;
             }
 
-            // ── Rule 4 — Training scene filter ──────────────────────────────
+            // ── Rule 6 — Training scene filter ──────────────────────────────
             let mut suppressed_training = false;
             let mut suppressed_training_reason = "";
             if !force_show_view
-                && cue_name.contains("_training_")
+                && (search_name.contains("_training_") || cue_sheet.contains("_training_"))
                 && (item_cue_id < SUPPRESS_TRAINING_CUE_ID_BELOW
                     || SUPPRESS_TRAINING_CUE_ID_EXTRA.contains(&item_cue_id))
             {
@@ -325,13 +406,13 @@ fn lookup_cst_entry(chara_id: i32, cue_id: i32, cue_name: &str) -> Option<CstEnt
                 if show {
                     info!(
                         "[captions] SHOW | chara_id={} voice_id={} cue_id={} item_cue_id={} view_id={} cue_name={}{}",
-                        chara_id, voice_id, cue_id, item_cue_id, current_view_id, cue_name,
+                        chara_id, voice_id, cue_id, item_cue_id, current_view_id, search_name,
                         if force_show_view { " [force-show view]" } else { "" }
                     );
                 } else {
                     info!(
                         "[captions] SKIP  | chara_id={} voice_id={} cue_id={} item_cue_id={} view_id={} cue_name={} reason={}",
-                        chara_id, voice_id, cue_id, item_cue_id, current_view_id, cue_name,
+                        chara_id, voice_id, cue_id, item_cue_id, current_view_id, search_name,
                         suppressed_training_reason
                     );
                 }
@@ -351,8 +432,11 @@ fn lookup_cst_entry(chara_id: i32, cue_id: i32, cue_name: &str) -> Option<CstEnt
 
 fn has_active_speech_bubble() -> bool {
     let current_view_id = get_current_view_id();
-    // Character Voice Archive in Character Note must always allow captions
-    if current_view_id == ViewId::CharacterNoteMain as i32 {
+    // Views where captions must always be permitted:
+    if current_view_id == ViewId::CharacterNoteMain as i32
+        || current_view_id == ViewId::RouletteDerby as i32
+        || current_view_id == ViewId::CharacterCardLimitBreakCut as i32
+    {
         return false;
     }
 
@@ -361,13 +445,13 @@ fn has_active_speech_bubble() -> bool {
         UnityEngine_CoreModule::{GameObject, Object},
     };
 
-    // 1. Check for active PartsCharaMessageBase speech bubble components in scene
+    // 1. Check for active PartsCharaMessageBase speech bubble components actively playing
     let parts_type = PartsCharaMessageBase::type_object();
     if !parts_type.is_null() {
         let objects = Object::FindObjectsOfType(parts_type, false);
         if !objects.this.is_null() && objects.len() > 0 {
             for obj in unsafe { objects.as_slice() } {
-                if !obj.is_null() {
+                if !obj.is_null() && PartsCharaMessageBase::get_IsPlaying(*obj) {
                     return true;
                 }
             }
@@ -424,7 +508,7 @@ extern "C" fn PlayInternal(this: *mut Il2CppObject, group: SoundGroup,
                     if last.len() >= 6 {
                         if let Ok(chara_id) = last[..4].parse::<i32>() {
                             // lookup_cst_entry applies all suppression rules (Groups 1–5)
-                            if let Some(cst_entry) = lookup_cst_entry(chara_id, cue_id, &cue_sheet) {
+                            if let Some(cst_entry) = lookup_cst_entry(chara_id, cue_id, &cue_sheet, &cue_name) {
                                 let hachimi = Hachimi::instance();
                                 let mut localized_text = hachimi.localized_data.load()
                                     .character_system_text_dict
@@ -493,8 +577,13 @@ pub fn init(umamusume: *const Il2CppImage) {
         CLASS = AudioManager;
         GET_CRIAUDIOMANAGER_ADDR = get_method_addr(AudioManager, c"get_CriAudioManager", 0);
         GET_CUE_LENGTH_ADDR = get_method_addr(AudioManager, c"GetCueLength", 2);
+        PLAY_BGM_FROM_NAME_ADDR = get_method_addr(AudioManager, c"PlayBgmFromName", 8);
+        GET_VOLUME_ADDR = get_method_addr(AudioManager, c"GetVolume", 1);
+
         _SONGPLAYBACK_FIELD = get_field_from_name(AudioManager, c"_songPlayback");
         _SONGCHARAPLAYBACKS_FIELD = get_field_from_name(AudioManager, c"_songCharaPlaybacks");
+        _BGMPLAYBACK_FIELD = get_field_from_name(AudioManager, c"_bgmPlayback");
+        _ATOMSOURCEARRAYBGM_FIELD = get_field_from_name(AudioManager, c"_atomSourceArrayBGM");
 
         // Cache MasterCharacterSystemText lookups so lookup_cst_entry pays
         // no class-resolution cost on the hot caption path.

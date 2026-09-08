@@ -1073,6 +1073,12 @@ pub struct Config {
     pub champions_live_year: i32,
     #[serde(default)]
     pub hide_now_loading: bool,
+    #[serde(default = "Config::default_true")]
+    pub race_playback_slider: bool,
+    #[serde(default = "Config::default_true")]
+    pub race_playback_button: bool,
+    #[serde(default = "Config::default_true")]
+    pub race_playback_key_enable: bool,
     #[serde(default)]
     pub disabled_hooks: FnvHashSet<String>,
     #[serde(flatten)]
@@ -1164,6 +1170,9 @@ pub struct Config {
 }
 
 impl Config {
+    pub fn default_true() -> bool {
+        true
+    }
     pub fn default_one_f32() -> f32 {
         1.0
     }

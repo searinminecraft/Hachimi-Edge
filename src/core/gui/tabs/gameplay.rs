@@ -31,6 +31,7 @@ pub fn render(editor: &ConfigEditor, config: &mut crate::core::hachimi::Config, 
     ConfigEditor::list_tile_slider(ui, t!("config_editor.story_text_speed_multiplier"), &mut config.story_tcps_multiplier, 0.1..=10.0, 0.1, 1);
     ConfigEditor::list_tile_switch(ui, t!("config_editor.force_allow_dynamic_camera"), &mut config.force_allow_dynamic_camera, true);
     ConfigEditor::list_tile_switch(ui, t!("config_editor.live_theater_allow_same_chara"), &mut config.live_theater_allow_same_chara, true);
+    ConfigEditor::list_tile_switch(ui, t!("config_editor.disable_tap_effect"), &mut config.disable_tap_effect, true);
 
     if ConfigEditor::list_tile_action_button(ui, t!("config_editor.live_vocals_swap"), t!("open")) {
         thread::spawn(|| {
@@ -142,6 +143,62 @@ pub fn render(editor: &ConfigEditor, config: &mut crate::core::hachimi::Config, 
                             { new_config.windows.hide_ingame_ui_hotkey_bind = raw; }
                             #[cfg(target_os = "android")]
                             { new_config.android.hide_ingame_ui_hotkey_bind = raw; }
+                            crate::core::gui::save_and_reload_config(new_config);
+                        })));
+                    });
+                }
+            });
+        });
+        ConfigEditor::space(ui, 4.0);
+    }
+
+    ConfigEditor::list_tile_switch(ui, t!("config_editor.race_playback_slider"), &mut config.race_playback_slider, true);
+    ConfigEditor::list_tile_switch(ui, t!("config_editor.race_playback_button"), &mut config.race_playback_button, true);
+    ConfigEditor::list_tile_switch(ui, t!("config_editor.race_playback_key_enable"), &mut config.race_playback_key_enable, true);
+
+    if config.race_playback_key_enable && !ConfigEditor::row_filtered(&t!("config_editor.race_playback_key")) {
+        ConfigEditor::maybe_draw_category_header(ui);
+        #[cfg(target_os = "windows")]
+        let key_label = crate::windows::utils::vk_to_display_label(config.windows.race_playback_key);
+        #[cfg(target_os = "android")]
+        let key_label = crate::android::gui_impl::keymap::keycode_display_label(config.android.race_playback_key);
+        let secondary_container    = egui_material3::theme::get_global_color("secondaryContainer");
+        let on_secondary_container = egui_material3::theme::get_global_color("onSecondaryContainer");
+        let key_galley = ui.painter().layout_no_wrap(
+            key_label.to_string(),
+            ui.style().text_styles[&egui::TextStyle::Body].clone(),
+            egui::Color32::WHITE,
+        );
+        let chip_w = key_galley.size().x + 16.0;
+
+        ui.add(egui::Label::new(t!("config_editor.race_playback_key")).wrap());
+        ui.horizontal(|ui| {
+            ui.spacing_mut().item_spacing.x = 8.0;
+            let (chip_rect, _) = ui.allocate_exact_size(
+                egui::vec2(chip_w, 28.0),
+                egui::Sense::hover(),
+            );
+            ui.painter().rect_filled(chip_rect, 6.0, secondary_container);
+            ui.painter().text(
+                chip_rect.center(),
+                egui::Align2::CENTER_CENTER,
+                key_label,
+                ui.style().text_styles[&egui::TextStyle::Body].clone(),
+                on_secondary_container,
+            );
+            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                if ui.add(MaterialButton::outlined(t!("bind_key"))).clicked() {
+                    thread::spawn(|| {
+                        let Some(gui_mutex) = Gui::instance() else { return };
+                        let mut gui = gui_mutex.lock().unwrap_or_else(|e| e.into_inner());
+                        gui.show_window(Box::new(crate::core::gui::windows::SetKeybindWindow::new(|result| {
+                            let Some(raw) = result else { return };
+                            let hachimi = crate::core::Hachimi::instance();
+                            let mut new_config = hachimi.config.load().as_ref().clone();
+                            #[cfg(target_os = "windows")]
+                            { new_config.windows.race_playback_key = raw; }
+                            #[cfg(target_os = "android")]
+                            { new_config.android.race_playback_key = raw; }
                             crate::core::gui::save_and_reload_config(new_config);
                         })));
                     });
