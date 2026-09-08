@@ -69,7 +69,7 @@ impl Interceptor {
             // Suppress repeated warnings about invalid hooks to prevent log spam during rendering
             // This can happen when IL2CPP callbacks are mistakenly treated as hooks
             thread_local! {
-                static WARNED_THIS_FRAME: std::cell::RefCell<Vec<usize>> = std::cell::RefCell::new(Vec::new());
+                static WARNED_THIS_FRAME: std::cell::RefCell<Vec<usize>> = const { std::cell::RefCell::new(Vec::new()) };
             }
             
             WARNED_THIS_FRAME.with(|warned| {

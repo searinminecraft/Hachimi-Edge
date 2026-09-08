@@ -174,7 +174,7 @@ impl<'a> Iterator for IsolateTags<'a> {
                                 // Check for a matching closing tag without allocating.
                                 // Scan self.s[self.i..] for "</" + tag_name + ">" by
                                 // finding every "</" and then checking the bytes that follow.
-                                let rest = self.s[self.i..].as_bytes();
+                                let rest = &self.s.as_bytes()[self.i..];
                                 let tag_bytes = tag_name.as_bytes();
                                 let has_closing = rest.windows(2 + tag_bytes.len() + 1).any(|w| {
                                     w[0] == b'<' && w[1] == b'/'
@@ -395,6 +395,7 @@ fn wrap_text_internal(string: &str, base_line_width: i32, line_width_multiplier:
 }
 
 pub unsafe fn wrap_text_il2cpp(string: *mut Il2CppString, base_line_width: i32) -> Option<*mut Il2CppString> {
+    if string.is_null() { return None; }
     let config = &Hachimi::instance().localized_data.load().config;
     if !config.use_text_wrapper {
         if base_line_width > 0 {
@@ -459,6 +460,7 @@ fn fit_text_internal(
 }
 
 pub unsafe fn fit_text_il2cpp(string: *mut Il2CppString, base_line_width: i32, base_font_size: i32) -> Option<*mut Il2CppString> {
+    if string.is_null() { return None; }
     let mult = Hachimi::instance().localized_data.load().config.line_width_multiplier?;
     if let Some(result) = fit_text_internal(unsafe { &(*string).as_utf16str().to_string() },
         base_line_width, base_font_size, mult
@@ -592,6 +594,7 @@ pub fn truncate_chars(chars: impl Iterator<Item = char>, width: usize, ellipsis:
 }
 
 pub unsafe fn truncate_text_il2cpp(string: *mut Il2CppString, width: usize, ellipsis: bool) -> Option<*mut Il2CppString> {
+    if string.is_null() { return None; }
     let line_width_multiplier = Hachimi::instance().localized_data.load().config.line_width_multiplier?;
     truncate_chars_internal(unsafe { (*string).as_utf16str().chars() }, width, ellipsis, line_width_multiplier).map(|chars|
         chars.iter()
@@ -623,6 +626,9 @@ pub fn write_json_file<T: Serialize, P: AsRef<Path>>(data: &T, path: P) -> Resul
 
 // Checks for both \n and \\n
 pub unsafe fn game_str_has_newline(string: *mut Il2CppString) -> bool {
+    if string.is_null() {
+        return false;
+    }
     let mut got_backslash = false;
     for c in unsafe { (*string).as_utf16str().as_slice().iter() } {
         if got_backslash {
@@ -887,4 +893,48 @@ fn parse_hex_color(hex: &str) -> Option<Color32> {
         _ => return None,
     };
     Some(Color32::from_rgba_premultiplied(r, g, b, a))
+}
+
+static RACE_SEEK_STAGE: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
+
+pub fn race_seek_stage(stage: usize) {
+    RACE_SEEK_STAGE.store(stage, std::sync::atomic::Ordering::Release);
+}
+
+#[cfg(target_os = "windows")]
+pub fn race_seek_seh<F: FnMut()>(mut f: F) -> bool {
+    if let Err(e) = microseh::try_seh(|| f()) {
+        let stage = RACE_SEEK_STAGE.load(std::sync::atomic::Ordering::Acquire);
+        error!(
+            "[race slider] seek faulted at stage {}: {} at {:#x} (rip {:#x}), state reset, race left paused",
+            stage,
+            e.code(),
+            e.address() as usize,
+            e.registers().rip()
+        );
+        false
+    } else {
+        true
+    }
+}
+
+#[cfg(target_os = "android")]
+pub fn race_seek_seh<F: FnOnce()>(f: F) -> bool {
+    f();
+    true
+}
+
+pub fn clear_il2cpp_list(list: *mut Il2CppObject) {
+    use crate::il2cpp::{ext::Il2CppObjectExt, symbols::get_method_addr_cached};
+
+    if list.is_null() { return; }
+
+    let list_class = unsafe { (*list).klass() };
+    if list_class.is_null() { return; }
+
+    let clear_addr = get_method_addr_cached(list_class, c"Clear", 0);
+    if clear_addr == 0 { return; }
+
+    let clear: extern "C" fn(*mut Il2CppObject) = unsafe { std::mem::transmute(clear_addr) };
+    clear(list);
 }

@@ -17,7 +17,7 @@ use std::{
     os::raw::c_void,
     panic::{self, AssertUnwindSafe},
     sync::{
-        atomic::{self, AtomicBool},
+        atomic::{self, AtomicBool, AtomicI32, AtomicU32},
         Arc, Mutex,
     },
     thread,
@@ -1435,7 +1435,7 @@ impl Gui {
                     .max_width(max_w)
                     .default_width((240.0 * scale).min(screen_w * 0.75))
                     .show_animated(ctx, self.show_menu, |ui| {
-                        
+
                         let (safe_top, _) = get_safe_insets(ctx);
                         if safe_top > 0.0 {
                             ui.add_space(safe_top);
@@ -1513,7 +1513,7 @@ impl Gui {
                                     .clone()
                                     .check_for_updates(|_| {});
                             }
-                            
+
                             ui.add_space(8.0 * scale);
 
                             egui::ScrollArea::vertical().show(ui, |ui| {
@@ -2070,7 +2070,7 @@ impl Gui {
                 egui::pos2(rect.right() - padding.x - icon_size / 2.0, rect.center().y),
                 egui::vec2(icon_size, icon_size),
             );
-            
+
             let dummy_visuals = egui::style::WidgetVisuals {
                 fg_stroke: egui::Stroke::new(1.0_f32, text_color),
                 ..ui.visuals().widgets.noninteractive.clone()
@@ -2158,9 +2158,10 @@ impl Gui {
                         let on_secondary_container = get_global_color("onSecondaryContainer");
                         let on_surface = get_global_color("onSurface");
 
+                        let search_lower = search_term.to_lowercase();
                         for (choice_val, label) in choices {
-                            if !search_term.is_empty()
-                                && !label.to_lowercase().contains(&search_term.to_lowercase())
+                            if !search_lower.is_empty()
+                                && !label.to_lowercase().contains(&search_lower)
                             {
                                 continue;
                             }
@@ -2545,7 +2546,7 @@ impl AppWindow for ConfigEditor {
             self.config          = (**global_handle).clone();
             self.last_ptr_config = global_ptr;
         }
-        let mut config = self.config.clone();
+        let mut config = std::mem::take(&mut self.config);
         #[cfg(target_os = "windows")]
         {
             config.windows.menu_open_key = global_handle.windows.menu_open_key;
@@ -2877,7 +2878,7 @@ pub fn save_and_reload_config(config: hachimi::Config) {
 pub fn custom_color_button_with_close(ui: &mut egui::Ui, color: &mut egui::Color32, popup_id_str: &str) -> egui::Response {
     let size = ui.spacing().interact_size;
     let (rect, mut response) = ui.allocate_exact_size(size, egui::Sense::click());
-    
+
     if ui.is_rect_visible(rect) {
         let visuals = ui.style().interact(&response);
         let rect = rect.expand(visuals.expansion);
@@ -2889,14 +2890,14 @@ pub fn custom_color_button_with_close(ui: &mut egui::Ui, color: &mut egui::Color
             egui::StrokeKind::Inside,
         );
     }
-    
+
     let popup_id = ui.make_persistent_id(popup_id_str);
 
     let screen_width = ui.ctx().content_rect().width();
     let picker_width = (screen_width * 0.55).clamp(150.0, 210.0);
 
     let mut changed = false;
-    
+
     egui::Popup::menu(&response)
         .id(popup_id)
         .close_behavior(egui::PopupCloseBehavior::CloseOnClickOutside)
@@ -2916,11 +2917,11 @@ pub fn custom_color_button_with_close(ui: &mut egui::Ui, color: &mut egui::Color
                 });
             });
         });
-    
+
     if changed {
         response.mark_changed();
     }
-    
+
     response
 }
 

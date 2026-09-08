@@ -274,7 +274,7 @@ impl ConfigEditor {
         enabled: bool,
     ) -> egui::Response {
         let label = label.into();
-        if Self::row_filtered(&label.text().to_string()) { return hidden_response(ui); }
+        if Self::row_filtered(label.text()) { return hidden_response(ui); }
         Self::maybe_draw_category_header(ui);
         ui.vertical(|ui| {
             let resp = Self::switch_row(ui, label, value, enabled);
@@ -294,7 +294,7 @@ impl ConfigEditor {
         hint: impl Into<egui::WidgetText>,
     ) -> egui::Response {
         let label = label.into();
-        if Self::row_filtered(&label.text().to_string()) { return hidden_response(ui); }
+        if Self::row_filtered(label.text()) { return hidden_response(ui); }
         Self::maybe_draw_category_header(ui);
         ui.vertical(|ui| {
             let resp = Self::switch_row(ui, label, value, enabled);
@@ -318,7 +318,7 @@ impl ConfigEditor {
         description: impl Into<egui::WidgetText>,
     ) -> egui::Response {
         let label = label.into();
-        if Self::row_filtered(&label.text().to_string()) { return hidden_response(ui); }
+        if Self::row_filtered(label.text()) { return hidden_response(ui); }
         Self::maybe_draw_category_header(ui);
         ui.vertical(|ui| {
             let resp = Self::switch_row(ui, label, value, enabled);
@@ -340,7 +340,7 @@ impl ConfigEditor {
         description: impl Into<egui::WidgetText>,
     ) -> egui::Response {
         let label = label.into();
-        if Self::row_filtered(&label.text().to_string()) { return hidden_response(ui); }
+        if Self::row_filtered(label.text()) { return hidden_response(ui); }
         Self::maybe_draw_category_header(ui);
         ui.vertical(|ui| {
             let resp = Self::switch_row(ui, label, value, enabled);
@@ -372,7 +372,7 @@ impl ConfigEditor {
         decimals: usize,
     ) -> egui::Response {
         let label = label.into();
-        if Self::row_filtered(&label.text().to_string()) { return hidden_response(ui); }
+        if Self::row_filtered(label.text()) { return hidden_response(ui); }
         Self::maybe_draw_category_header(ui);
         ui.vertical(|ui| {
             ui.add(egui::Label::new(label).wrap());
@@ -392,7 +392,7 @@ impl ConfigEditor {
         choices: &[(T, &str)],
     ) -> bool {
         let label = label.into();
-        if Self::row_filtered(&label.text().to_string()) { return false; }
+        if Self::row_filtered(label.text()) { return false; }
         Self::maybe_draw_category_header(ui);
         ui.vertical(|ui| {
             ui.add(egui::Label::new(label).wrap());
@@ -411,7 +411,7 @@ impl ConfigEditor {
         value: &mut String,
     ) -> egui::Response {
         let label = label.into();
-        if Self::row_filtered(&label.text().to_string()) { return hidden_response(ui); }
+        if Self::row_filtered(label.text()) { return hidden_response(ui); }
         Self::maybe_draw_category_header(ui);
         ui.vertical(|ui| {
             ui.add(egui::Label::new(label).wrap());
@@ -464,7 +464,7 @@ impl ConfigEditor {
         label: impl Into<egui::WidgetText>,
     ) -> bool {
         let label = label.into();
-        if Self::row_filtered(&label.text().to_string()) { return false; }
+        if Self::row_filtered(label.text()) { return false; }
         Self::maybe_draw_category_header(ui);
         ui.vertical(|ui| {
             let clicked = ui.add(
@@ -485,7 +485,7 @@ impl ConfigEditor {
         btn_label: impl Into<egui::WidgetText>,
     ) -> bool {
         let label = label.into();
-        if Self::row_filtered(&label.text().to_string()) { return false; }
+        if Self::row_filtered(label.text()) { return false; }
         Self::maybe_draw_category_header(ui);
         ui.vertical(|ui| {
             let clicked = ui.horizontal(|ui| {
@@ -516,7 +516,7 @@ impl ConfigEditor {
         label: impl Into<egui::WidgetText>,
     ) -> bool {
         let label = label.into();
-        if Self::row_filtered(&label.text().to_string()) { return false; }
+        if Self::row_filtered(label.text()) { return false; }
         Self::maybe_draw_category_header(ui);
         ui.vertical(|ui| {
             let clicked = ui.add(
@@ -538,7 +538,7 @@ impl ConfigEditor {
         value: impl Into<egui::WidgetText>,
     ) {
         let label = label.into();
-        if Self::row_filtered(&label.text().to_string()) { return; }
+        if Self::row_filtered(label.text()) { return; }
         Self::maybe_draw_category_header(ui);
         ui.vertical(|ui| {
             let value: egui::WidgetText = value.into();
@@ -580,7 +580,7 @@ impl ConfigEditor {
         options: &[String],
     ) {
         let label = label.into();
-        if Self::row_filtered(&label.text().to_string()) { return; }
+        if Self::row_filtered(label.text()) { return; }
         Self::maybe_draw_category_header(ui);
         ui.add(egui::Label::new(label).wrap());
         let avail = ui.available_width();
@@ -609,7 +609,7 @@ impl ConfigEditor {
         suffix: Option<&str>,
     ) {
         let label = label.into();
-        if Self::row_filtered(&label.text().to_string()) { return; }
+        if Self::row_filtered(label.text()) { return; }
         Self::maybe_draw_category_header(ui);
         ui.add(egui::Label::new(label).wrap());
         ui.add({

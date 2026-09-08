@@ -1,6 +1,6 @@
 [package]
 name = "hachimi"
-version = "0.28.1"
+version = "0.29.0"
 edition = "2021"
 
 [lib]
@@ -24,6 +24,7 @@ codegen-units = 16
 [lints.clippy]
 all = "allow"
 perf = { level = "deny", priority = 1 }
+missing_const_for_thread_local = { level = "allow", priority = 2 }
 
 [dependencies]
 log = "0.4"

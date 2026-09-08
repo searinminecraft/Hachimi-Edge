@@ -1710,7 +1710,7 @@ impl LocalizedData {
     }
 
     pub fn load_custom_story_ruby(&self, ast_ruby_name: &str) -> Option<Vec<CustomRubyBlock>> {
-        let filename = ast_ruby_name.split('/').last().unwrap_or(ast_ruby_name);
+        let filename = ast_ruby_name.split('/').next_back().unwrap_or(ast_ruby_name);
 
         let filename_no_ext = filename.strip_suffix(".asset").unwrap_or(filename);
 
@@ -2109,6 +2109,9 @@ mod tests {
         let config = Hachimi::load_config(&temp_dir, &Region::Unknown)
             .expect("load config should recover from duplicate keys");
         // Last value (true) wins — this tests recovery, not preference.
+        #[cfg(target_os = "windows")]
         assert!(config.windows.enable_smtc);
+        #[cfg(not(target_os = "windows"))]
+        assert_eq!(config.config_schema_version, 2);
     }
 }

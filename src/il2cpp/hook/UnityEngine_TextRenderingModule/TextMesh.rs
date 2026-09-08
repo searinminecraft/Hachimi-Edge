@@ -43,10 +43,7 @@ pub fn apply_translations(completed: &[(String, String)]) {
     {
         let mut tracker = ACTIVE_TEXT_MESH_COMPONENTS.lock().unwrap();
 
-        tracker.retain(|_, active| {
-            let ptr = active.handle.target();
-            !ptr.is_null() && Object::op_Implicit(ptr)
-        });
+        tracker.retain(|_, active| !active.handle.target().is_null());
 
         for (orig, trans) in completed {
             let unity_string = trans.to_il2cpp_string();
@@ -54,7 +51,7 @@ pub fn apply_translations(completed: &[(String, String)]) {
             for active in tracker.values() {
                 if &active.original == orig {
                     let ptr = active.handle.target();
-                    if !ptr.is_null() && Object::op_Implicit(ptr) {
+                    if !ptr.is_null() {
                         updates_to_apply.push((ptr as usize, unity_string));
                     }
                 }
@@ -63,9 +60,7 @@ pub fn apply_translations(completed: &[(String, String)]) {
     }
 
     for (ptr, unity_string) in updates_to_apply {
-        if Object::op_Implicit(ptr as *mut Il2CppObject) {
-            get_orig_fn!(set_text_hook, SetTextFn)(ptr as *mut Il2CppObject, unity_string);
-        }
+        get_orig_fn!(set_text_hook, SetTextFn)(ptr as *mut Il2CppObject, unity_string);
     }
 }
 
