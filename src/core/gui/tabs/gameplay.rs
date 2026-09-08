@@ -66,15 +66,24 @@ pub fn render(editor: &ConfigEditor, config: &mut crate::core::hachimi::Config, 
         ConfigEditor::list_tile_switch(ui, t!("config_editor.skill_info_dialog"), &mut config.skill_info_dialog, true);
     }
 
-    if Hachimi::instance().game.region != crate::core::game::Region::Taiwan {
+    {
+        let localized_data = Hachimi::instance().localized_data.load();
+        let get_season = |k, default: &str| localized_data.localize_dict.get(k).map(|s| s.as_str()).unwrap_or(default).to_string();
+
+        let season_spring = get_season("Common0108", &t!("spring"));
+        let season_summer = get_season("Common0109", &t!("summer"));
+        let season_fall = get_season("Common0110", &t!("fall"));
+        let season_winter = get_season("Common0111", &t!("winter"));
+        let season_sakura = get_season("Common0112", &t!("cherry_blossom"));
+
         ConfigEditor::list_tile_combo(ui, t!("config_editor.homescreen_bgseason"), "homescreen_bgseason",
             &mut config.homescreen_bgseason, &[
                 (BgSeason::None, &t!("default")),
-                (BgSeason::Spring,        &get_localized_string("Common0108").as_str()),
-                (BgSeason::Summer,        &get_localized_string("Common0109").as_str()),
-                (BgSeason::Fall,          &get_localized_string("Common0110").as_str()),
-                (BgSeason::Winter,        &get_localized_string("Common0111").as_str()),
-                (BgSeason::CherryBlossom, &get_localized_string("Common0112").as_str()),
+                (BgSeason::Spring, season_spring.as_str()),
+                (BgSeason::Summer, season_summer.as_str()),
+                (BgSeason::Fall, season_fall.as_str()),
+                (BgSeason::Winter, season_winter.as_str()),
+                (BgSeason::CherryBlossom, season_sakura.as_str()),
             ]);
     }
     ConfigEditor::list_tile_switch(ui, t!("config_editor.disable_skill_name_translation"), &mut config.disable_skill_name_translation, true);

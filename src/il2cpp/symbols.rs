@@ -815,6 +815,9 @@ impl<K, V> Dictionary<K, V> {
 
 impl<K: PartialEq, V> Dictionary<K, V> {
     pub fn find_entry(&self, key: &K) -> Option<&'static mut Il2CppDictionaryEntry<K, V>> {
+        if self.this.is_null() || unsafe { (*self.this).entries.is_null() } {
+            return None;
+        }
         let mut entries = self.entries();
         for entry in unsafe { entries.as_mut_slice().iter_mut() } {
             if entry.key == *key {
