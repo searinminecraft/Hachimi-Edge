@@ -38,6 +38,11 @@ confirm_dialog_title: "确认"
 soft_restart_confirm_content: "确定要软重启游戏吗？"
 in_game_browser_confirm_content: "确定要打开游戏内浏览器吗？"
 browser_dialog_title: "浏览器"
+spring: "春"
+summer: "夏"
+fall: "秋"
+winter: "冬"
+cherry_blossom: "樱"
 
 change_translation_repo:
   title: "更换翻译仓库"
@@ -128,6 +133,9 @@ first_time_setup:
   select_translation_repo: "选择翻译仓库："
   no_compatible_repo: "没有与此游戏版本兼容的翻译仓库。"
   skip_translation: "跳过翻译设置。"
+  common_settings_heading: "常用设置"
+  common_settings_content: >-
+    在此配置核心游戏与视觉选项。您之后随时可以在配置编辑器中调整这些设置。
   complete_heading: "全部完成！"
   complete_content: >-
     点击「完成」以保存配置。
@@ -236,6 +244,7 @@ config_editor:
   cyspring_stiffness_force_rate_scale: "CySpring 刚度缩放比例"
   cyspring_drag_force_rate_scale: "CySpring 阻尼缩放比例"
   disable_skill_name_translation: "禁用技能名称翻译"
+  disable_tap_effect: "禁用点击特效"
   hide_ingame_ui_hotkey: "隐藏游戏内 UI 的快捷键"
   hide_ingame_ui_hotkey_info: >-
     此选项允许使用快捷键切换游戏内 UI 界面的显示。
@@ -298,6 +307,10 @@ config_editor:
   custom_title_name: "自定义窗口标题"
   msgpack_notifier_connection_timeout_ms: "通知器连接超时（毫秒）"
   hide_ingame_ui_hotkey_bind: "隐藏 UI 快捷键"
+  race_playback_slider: "比赛回放进度条"
+  race_playback_button: "比赛回放暂停/继续按钮"
+  race_playback_key_enable: "启用比赛回放暂停/继续快捷键"
+  race_playback_key: "比赛回放暂停/继续快捷键"
   ui_loading_show_orientation_guide: "加载时显示方向引导"
   full_screen_res: "自定义全屏分辨率"
   landscape: "横屏"

@@ -38,6 +38,11 @@ confirm_dialog_title: "Подтвердите"
 soft_restart_confirm_content: "Вы уверены, что хотите выполнить мягкую перезагрузку игры?"
 in_game_browser_confirm_content: "Вы уверены, что хотите открыть внутриигровой браузер?"
 browser_dialog_title: "Браузер"
+spring: "Весна"
+summer: "Лето"
+fall: "Осень"
+winter: "Зима"
+cherry_blossom: "Сакура"
 
 change_translation_repo:
   title: "Сменить репозиторий переводов"
@@ -127,6 +132,9 @@ first_time_setup:
   select_translation_repo: "Выберите репозиторий переводов:"
   no_compatible_repo: "Ни один репозиторий не совместим с этой версией игры."
   skip_translation: "Пропустить перевод."
+  common_settings_heading: "Основные настройки"
+  common_settings_content: >-
+    Настройте основные игровые и визуальные параметры. Вы сможете изменить их в любое время в редакторе конфигурации.
   complete_heading: "Всё готово!"
   complete_content: >-
     Нажмите «Готово», чтобы сохранить настройки.
@@ -235,6 +243,7 @@ config_editor:
   cyspring_stiffness_force_rate_scale: "Масштаб силы жёсткости CySpring"
   cyspring_drag_force_rate_scale: "Масштаб силы сопротивления CySpring"
   disable_skill_name_translation: "Отключить перевод названий навыков"
+  disable_tap_effect: "Отключить эффект нажатия"
   hide_ingame_ui_hotkey: "Включить кнопку скрытия интерфейса игры"
   hide_ingame_ui_hotkey_info: >-
     Эта опция позволяет переключать видимость внутриигрового интерфейса через горячую клавишу.
@@ -297,6 +306,10 @@ config_editor:
   custom_title_name: "Пользовательский заголовок окна"
   msgpack_notifier_connection_timeout_ms: "Таймаут подключения нотификатора (мс)"
   hide_ingame_ui_hotkey_bind: "Клавиша скрытия интерфейса игры"
+  race_playback_slider: "Ползунок воспроизведения забега"
+  race_playback_button: "Кнопка паузы забега"
+  race_playback_key_enable: "Включить клавишу паузы забега"
+  race_playback_key: "Клавиша паузы забега"
   ui_loading_show_orientation_guide: "Показывать подсказку ориентации при загрузке"
   full_screen_res: "Пользовательское разрешение полного экрана"
   landscape: "Альбомный"

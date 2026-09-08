@@ -38,6 +38,11 @@ confirm_dialog_title: "Confirm"
 soft_restart_confirm_content: "Are you sure you want to soft restart the game?"
 in_game_browser_confirm_content: "Are you sure you want to open the in-game browser?"
 browser_dialog_title: "Browser"
+spring: "Spring"
+summer: "Summer"
+fall: "Autumn"
+winter: "Winter"
+cherry_blossom: "Sakura"
 
 change_translation_repo:
   title: "Change Translation Repo"
@@ -128,6 +133,10 @@ first_time_setup:
   select_translation_repo: "Select a translation repo:"
   no_compatible_repo: "No translation repos are compatible with this game version."
   skip_translation: "Skip translations."
+  common_settings_heading: "Common settings"
+  common_settings_content: >-
+    Configure essential gameplay and visual preferences.
+    You can adjust these anytime in the Config Editor.
   complete_heading: "All done!"
   complete_content: >-
     Click on Done to save the configuration.
@@ -238,6 +247,7 @@ config_editor:
   cyspring_stiffness_force_rate_scale: "CySpring Stiffness Force Rate Scale"
   cyspring_drag_force_rate_scale: "CySpring Drag Force Rate Scale"
   disable_skill_name_translation: "Disable skill name translation"
+  disable_tap_effect: "Disable Tap Effect"
   hide_ingame_ui_hotkey: "Hide ingame UI hotkey"
   hide_ingame_ui_hotkey_info: >-
     This option allows a shortcut key to toggle the ingame UI.
@@ -300,6 +310,10 @@ config_editor:
   custom_title_name: "Custom window title"
   msgpack_notifier_connection_timeout_ms: "Notifier connection timeout (ms)"
   hide_ingame_ui_hotkey_bind: "Hide UI hotkey key"
+  race_playback_slider: "Race Playback Slider"
+  race_playback_button: "Race playback pause/resume button"
+  race_playback_key_enable: "Enable race playback pause/resume keybind"
+  race_playback_key: "Race playback pause/resume keybind"
   ui_loading_show_orientation_guide: "Show orientation guide on loading"
   full_screen_res: "Custom fullscreen resolution"
   landscape: "Landscape"

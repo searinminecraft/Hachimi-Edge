@@ -38,6 +38,11 @@ confirm_dialog_title: "確認"
 soft_restart_confirm_content: "您是否想要軟重啟本遊戲？"
 in_game_browser_confirm_content: "您是否想要開啟遊戲內瀏覽器？"
 browser_dialog_title: "瀏覽器"
+spring: "春"
+summer: "夏"
+fall: "秋"
+winter: "冬"
+cherry_blossom: "櫻"
 
 change_translation_repo:
   title: "更換翻譯資料庫"
@@ -128,6 +133,9 @@ first_time_setup:
   select_translation_repo: "選擇翻譯資料庫："
   no_compatible_repo: "沒有與此遊戲版本相容的翻譯資料庫。"
   skip_translation: "跳過翻譯設定。"
+  common_settings_heading: "常用設定"
+  common_settings_content: >-
+    在此設定核心遊戲與視覺偏好。您之後隨時可以在設定編輯器中進行調整。
   complete_heading: "全部完成！"
   complete_content: >-
     點擊「完成」以儲存設定。
@@ -236,6 +244,7 @@ config_editor:
   cyspring_stiffness_force_rate_scale: "CySpring 剛度縮放比例"
   cyspring_drag_force_rate_scale: "CySpring 阻尼縮放比例"
   disable_skill_name_translation: "停用技能名稱翻譯"
+  disable_tap_effect: "停用點擊特效"
   hide_ingame_ui_hotkey: "隱藏遊戲內 UI 快捷鍵"
   hide_ingame_ui_hotkey_info: >-
     此選項允許使用快捷鍵切換遊戲內介面（UI）的顯示。
@@ -298,6 +307,10 @@ config_editor:
   custom_title_name: "自訂視窗標題"
   msgpack_notifier_connection_timeout_ms: "通知器連線逾時（毫秒）"
   hide_ingame_ui_hotkey_bind: "隱藏 UI 快捷鍵"
+  race_playback_slider: "比賽重播進度條"
+  race_playback_button: "比賽重播暫停/繼續按鈕"
+  race_playback_key_enable: "啟用比賽重播暫停/繼續快捷鍵"
+  race_playback_key: "比賽重播暫停/繼續快捷鍵"
   ui_loading_show_orientation_guide: "載入時顯示方向引導"
   full_screen_res: "自訂全螢幕解析度"
   landscape: "橫向"

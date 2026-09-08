@@ -38,6 +38,11 @@ confirm_dialog_title: "Konfirmasi"
 soft_restart_confirm_content: "Apa kamu yakin ingin memulai ulang ringan game?"
 in_game_browser_confirm_content: "Apa kamu yakin ingin buka browser dalam game?"
 browser_dialog_title: "Browser"
+spring: "Musim Semi"
+summer: "Musim Panas"
+fall: "Musim Gugur"
+winter: "Musim Dingin"
+cherry_blossom: "Sakura"
 
 change_translation_repo:
   title: "Ubah Repo Translasi"
@@ -129,6 +134,9 @@ first_time_setup:
   select_translation_repo: "Mohon pilih repositori translasi:"
   no_compatible_repo: "Tidak ada repositori yang didukung oleh versi game ini"
   skip_translation: "Lewati translasi."
+  common_settings_heading: "Pengaturan umum"
+  common_settings_content: >-
+    Konfigurasikan preferensi gameplay dan visual penting. Anda dapat mengubahnya kapan saja di Editor Konfigurasi.
   complete_heading: "Selesai!"
   complete_content: >-
     Klik Selesai untuk menyimpan konfigurasi.
@@ -237,6 +245,7 @@ config_editor:
   cyspring_stiffness_force_rate_scale: "Skala Kekuatan Kekakuan CySpring"
   cyspring_drag_force_rate_scale: "Skala Kekuatan Hambatan CySpring"
   disable_skill_name_translation: "Matikan translasi nama skill"
+  disable_tap_effect: "Nonaktifkan Efek Ketukan"
   hide_ingame_ui_hotkey: "Sembunyikan hotkey UI dalam game"
   hide_ingame_ui_hotkey_info: >-
     Opsi ini memungkinkan tombol pintas untuk mengaktifkan/menonaktifkan UI di dalam game.
@@ -299,6 +308,10 @@ config_editor:
   custom_title_name: "Judul jendela kustom"
   msgpack_notifier_connection_timeout_ms: "Batas waktu koneksi notifikasi (ms)"
   hide_ingame_ui_hotkey_bind: "Tombol pintas sembunyikan UI"
+  race_playback_slider: "Slider Pemutaran Balapan"
+  race_playback_button: "Tombol jeda/lanjutkan pemutaran balapan"
+  race_playback_key_enable: "Aktifkan tombol pintas jeda/lanjutkan pemutaran balapan"
+  race_playback_key: "Tombol pintas jeda/lanjutkan pemutaran balapan"
   ui_loading_show_orientation_guide: "Tampilkan panduan orientasi saat memuat"
   full_screen_res: "Resolusi layar penuh kustom"
   landscape: "Lanskap"

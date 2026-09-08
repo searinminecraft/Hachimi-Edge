@@ -38,6 +38,11 @@ confirm_dialog_title: "Xác nhận"
 soft_restart_confirm_content: "Bạn có muốn soft restart game không?"
 in_game_browser_confirm_content: "Bạn có muốn mở trình duyệt trong game không?"
 browser_dialog_title: "Trình duyệt"
+spring: "Mùa xuân"
+summer: "Mùa hạ"
+fall: "Mùa thu"
+winter: "Mùa đông"
+cherry_blossom: "Hoa anh đào"
 
 change_translation_repo:
   title: "Thay đổi kho bản dịch"
@@ -125,6 +130,9 @@ first_time_setup:
   select_translation_repo: "Chọn một bản dịch:"
   no_compatible_repo: "Không có bản dịch nào tương thích với phiên bản game này."
   skip_translation: "Bỏ qua bản dịch."
+  common_settings_heading: "Cài đặt chung"
+  common_settings_content: >-
+    Thiết lập các tùy chọn hình ảnh và lối chơi cần thiết. Bạn có thể thay đổi lại bất cứ lúc nào trong Trình chỉnh sửa cấu hình.
   complete_heading: "Hoàn tất!"
   complete_content: >-
     Bản dịch đã được thiết lập. Khi bạn nhấp vào Hoàn tất, cài đặt sẽ được lưu
@@ -233,6 +241,7 @@ config_editor:
   cyspring_stiffness_force_rate_scale: "Tỉ lệ lực độ cứng CySpring"
   cyspring_drag_force_rate_scale: "Tỉ lệ lực cản CySpring"
   disable_skill_name_translation: "Tắt dịch tên kỹ năng"
+  disable_tap_effect: "Tắt hiệu ứng chạm"
   hide_ingame_ui_hotkey: "Phím tắt ẩn giao diện trong game"
   hide_ingame_ui_hotkey_info: >-
     Tùy chọn này cho phép sử dụng phím tắt để ẩn/hiện giao diện (UI) trong trò chơi.
@@ -295,6 +304,10 @@ config_editor:
   custom_title_name: "Tiêu đề cửa sổ tùy chỉnh"
   msgpack_notifier_connection_timeout_ms: "Thời gian chờ kết nối thông báo (ms)"
   hide_ingame_ui_hotkey_bind: "Phím tắt ẩn UI"
+  race_playback_slider: "Thanh trượt phát lại cuộc đua"
+  race_playback_button: "Nút tạm dừng/tiếp tục phát lại cuộc đua"
+  race_playback_key_enable: "Bật phím tắt tạm dừng/tiếp tục phát lại cuộc đua"
+  race_playback_key: "Phím tắt tạm dừng/tiếp tục phát lại cuộc đua"
   ui_loading_show_orientation_guide: "Hiển thị hướng dẫn hướng khi tải"
   full_screen_res: "Độ phân giải toàn màn hình tùy chỉnh"
   landscape: "Ngang"

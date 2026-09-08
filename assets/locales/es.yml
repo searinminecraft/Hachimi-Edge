@@ -38,6 +38,11 @@ confirm_dialog_title: "Confirmar"
 soft_restart_confirm_content: "¿Seguro que quieres realizar un reinicio suave del juego?"
 in_game_browser_confirm_content: "¿Seguro que quieres abrir el navegador del juego?"
 browser_dialog_title: "Navegador"
+spring: "Primavera"
+summer: "Verano"
+fall: "Otoño"
+winter: "Invierno"
+cherry_blossom: "Sakura"
 
 change_translation_repo:
   title: "Cambiar repositorio de traducción"
@@ -130,6 +135,9 @@ first_time_setup:
   select_translation_repo: "Selecciona un repositorio de traducción:"
   no_compatible_repo: "No se han encontrado repositorios compatibles con esta versión del juego."
   skip_translation: "Omitir traducciones"
+  common_settings_heading: "Ajustes comunes"
+  common_settings_content: >-
+    Configura las preferencias esenciales de juego y visuales. Puedes cambiarlas en cualquier momento en el Editor de configuración.
   complete_heading: "¡Todo listo!"
   complete_content: >-
     Se ha ajustado el repositorio de traducción. Cuando pulses en Listo, se guardará
@@ -239,6 +247,7 @@ config_editor:
   cyspring_stiffness_force_rate_scale: "Escala de fuerza de rigidez CySpring"
   cyspring_drag_force_rate_scale: "Escala de fuerza de arrastre CySpring"
   disable_skill_name_translation: "No traducir habilidades"
+  disable_tap_effect: "Desactivar efecto de toque"
   hide_ingame_ui_hotkey: "Atajo para ocultar UI del juego"
   hide_ingame_ui_hotkey_info: >-
     Esta opción te permite asignar una tecla para alternar el UI del juego.
@@ -301,6 +310,10 @@ config_editor:
   custom_title_name: "Título de ventana personalizado"
   msgpack_notifier_connection_timeout_ms: "Tiempo de espera de conexión del notificador (ms)"
   hide_ingame_ui_hotkey_bind: "Tecla para ocultar UI"
+  race_playback_slider: "Barra de reproducción de la repetición de carreras"
+  race_playback_button: "Botón de pausa/reanudación de la repetición de carreras"
+  race_playback_key_enable: "Activar tecla para pausar/reanudar la repetición de carreras"
+  race_playback_key: "Tecla para pausar/reanudar la repetición de carreras"
   ui_loading_show_orientation_guide: "Mostrar guía de orientación al cargar"
   full_screen_res: "Resolución de pantalla completa personalizada"
   landscape: "Horizontal"

@@ -38,6 +38,11 @@ confirm_dialog_title: "Confirmar"
 soft_restart_confirm_content: "Você tem certeza que deseja realizar um soft-restart do jogo?"
 in_game_browser_confirm_content: "Você tem certeza que deseja abrir o navegador do jogo?"
 browser_dialog_title: "Navegador"
+spring: "Primavera"
+summer: "Verão"
+fall: "Outono"
+winter: "Inverno"
+cherry_blossom: "Cerejeiras"
 
 change_translation_repo:
   title: "Alterar repositório de tradução"
@@ -128,6 +133,9 @@ first_time_setup:
   select_translation_repo: "Selecione um repositório de tradução:"
   no_compatible_repo: "Nenhum repositório de tradução é compatível com esta versão do jogo."
   skip_translation: "Ignorar traduções."
+  common_settings_heading: "Configurações comuns"
+  common_settings_content: >-
+    Configure as preferências essenciais de jogabilidade e visuais. Você pode ajustá-las a qualquer momento no Editor de Configurações.
   complete_heading: "Feito!"
   complete_content: >-
     Clique em Finalizar para salvar as configurações.
@@ -238,6 +246,7 @@ config_editor:
   cyspring_stiffness_force_rate_scale: "Escala da força de rigidez CySpring"
   cyspring_drag_force_rate_scale: "Escala da força de arrasto CySpring"
   disable_skill_name_translation: "Desabilitar tradução dos nomes das habilidades"
+  disable_tap_effect: "Desativar efeito de toque"
   hide_ingame_ui_hotkey: "Atalho para esconder a UI do jogo"
   hide_ingame_ui_hotkey_info: >-
     Esta opção permite que um atalho seja utilizado para alternar a visualização da UI do jogo.
@@ -300,6 +309,10 @@ config_editor:
   custom_title_name: "Título de janela personalizado"
   msgpack_notifier_connection_timeout_ms: "Tempo limite de conexão do notificador (ms)"
   hide_ingame_ui_hotkey_bind: "Tecla de atalho para ocultar UI"
+  race_playback_slider: "Barra de progresso nas corridas"
+  race_playback_button: "Botão de pause nas corridas"
+  race_playback_key_enable: "Atalho para pausar as corridas"
+  race_playback_key: "Tecla para pausar as corridas"
   ui_loading_show_orientation_guide: "Mostrar guia de orientação ao carregar"
   full_screen_res: "Resolução de tela cheia personalizada"
   landscape: "Paisagem"

@@ -38,6 +38,11 @@ confirm_dialog_title: "Kumpirmahin"
 soft_restart_confirm_content: "Gusto mo ba talaga i-soft restart ang laro?"
 in_game_browser_confirm_content: "Gusto mo bang buksan ang in-game na browser?"
 browser_dialog_title: "Browser"
+spring: "Tagsibol"
+summer: "Tag-init"
+fall: "Taglagas"
+winter: "Taglamig"
+cherry_blossom: "Sakura"
 
 change_translation_repo:
   title: "Baguhin ang Translation Repo"
@@ -130,6 +135,9 @@ first_time_setup:
   select_translation_repo: "Pumili ng translations repo:"
   no_compatible_repo: "Walang mga repo na compatible sa game version na ito."
   skip_translation: "Laktawan ang translations"
+  common_settings_heading: "Mga karaniwang setting"
+  common_settings_content: >-
+    I-configure ang mga mahalagang kagustuhan sa gameplay at visual. Maaari mo itong baguhin anumang oras sa Config Editor.
   complete_heading: "Tapos na!"
   complete_content: >-
     Pindutin ang "Tapos na" para i-save ang configuration.
@@ -238,6 +246,7 @@ config_editor:
   cyspring_stiffness_force_rate_scale: "Scale ng Lakas ng Stiffness sa CySpring"
   cyspring_drag_force_rate_scale: "Scale ng Lakas ng Drag sa CySpring"
   disable_skill_name_translation: "I-disable ang pag-translate ng mga skill name"
+  disable_tap_effect: "I-disable ang Tap Effect"
   hide_ingame_ui_hotkey: "I-enable ang hotkey ng pagtago ng game UI"
   hide_ingame_ui_hotkey_info: >-
     Pinapayagan ng opsyong ito ang isang shortcut key sa pag-toggle ng game UI.
@@ -300,6 +309,10 @@ config_editor:
   custom_title_name: "Custom na pamagat ng window"
   msgpack_notifier_connection_timeout_ms: "Timeout ng koneksyon ng notifier (ms)"
   hide_ingame_ui_hotkey_bind: "Hotkey para itago ang UI"
+  race_playback_slider: "Ipakita ang slider sa Playback ng Karera"
+  race_playback_button: "Playback ng karera - Ipakita ang pause/resume button"
+  race_playback_key_enable: "I-enable ang keybind sa pag-pause/resume ng playback sa karera"
+  race_playback_key: "Key sa pag-pause/resume ng playback sa karera"
   ui_loading_show_orientation_guide: "Ipakita ang gabay sa oryentasyon habang naglo-load"
   full_screen_res: "Custom na full screen resolution"
   landscape: "Landscape"
