@@ -108,7 +108,6 @@ mod InputSystemManager;
 mod BackKeyInputManager;
 #[cfg(target_os = "windows")]
 pub mod WindowsGamepadControl;
-#[cfg(target_os = "windows")]
 pub mod TapEffectController;
 pub mod MasterCharacterSystemText;
 pub mod Notification;
@@ -273,6 +272,7 @@ pub fn init() {
     PartsRaceAnalyzeRaceEventListItem::init(image);
     AudioManager::init(image);
     LiveStreamingCommentScriptableObject::init(image);
+    TapEffectController::init(image);
 
     // Ported from kairusds/Hachimi-Edge (additive merge)
     StoryViewTextControllerBase::init(image);
@@ -283,7 +283,6 @@ pub fn init() {
         InputSystemManager::init(image);
         BackKeyInputManager::init(image);
         WindowsGamepadControl::init(image);
-        TapEffectController::init(image);
         MainGameInitializer::init(image);
         LiveTimelineControl::init(image);
         LiveTimelineWorkSheet::init(image);

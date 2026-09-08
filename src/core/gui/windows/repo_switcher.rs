@@ -123,7 +123,7 @@ impl AppWindow for RepoSwitcherWindow {
         let mut open2 = true;
 
         let hachimi = Hachimi::instance();
-        let manager = hachimi.tl_repo_manager.lock().unwrap().clone();
+        let manager = hachimi.tl_repo_manager.lock().unwrap();
         let current_repo_id = hachimi.config.load().selected_tl_repo_id;
         let mut selected_id = current_repo_id;
         let has_repos = !manager.repos.is_empty();

@@ -2,7 +2,6 @@ use crate::core::gui::config::ConfigEditor;
 use crate::core::gui::Gui;
 use crate::core::gui::dialogs::SimpleOkDialog;
 use crate::core::gui::windows::live_vocals::LiveVocalsSwapWindow;
-use crate::core::utils::get_localized_string;
 use crate::core::Hachimi;
 #[allow(unused_imports)]
 use egui_material3::*;
