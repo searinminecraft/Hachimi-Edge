@@ -1,26 +1,20 @@
 name: Clippy Check
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 on:
   push:
     branches:
       - main
   pull_request:
     branches:
-      - main
+      - "**"
 
 jobs:
-  clippy:
-    name: Clippy (${{ matrix.name }})
+  clippy-windows:
+    name: Clippy (Windows)
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - name: Windows
-            target: x86_64-pc-windows-msvc
-          - name: Android
-            target: aarch64-linux-android
-
     steps:
       - uses: actions/checkout@v7
 
@@ -35,9 +29,64 @@ jobs:
               - 'Cargo.toml'
               - 'Cargo.lock'
               - 'build.rs'
+              - '.github/workflows/clippy_check.yml'
+
+      - name: Install Rust
+        if: steps.filter.outputs.code_changed == 'true'
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+          targets: x86_64-pc-windows-msvc
+
+      - uses: Swatinem/rust-cache@v2
+        if: steps.filter.outputs.code_changed == 'true'
+        with:
+          prefix-key: x86_64-pc-windows-msvc
+
+      - name: Setup Windows MSVC Cross-Compile Tools
+        if: steps.filter.outputs.code_changed == 'true'
+        run: |
+          sudo apt install -y llvm lld
+          sudo ln -sf /usr/bin/llvm-ar /usr/local/bin/llvm-lib
+
+      - name: Install cargo-xwin
+        if: steps.filter.outputs.code_changed == 'true'
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-xwin@0.23.1
+
+      - name: Cache cargo-xwin MSVC CRT & Windows SDK
+        if: steps.filter.outputs.code_changed == 'true'
+        uses: actions/cache@v6
+        with:
+          path: ~/.cache/cargo-xwin
+          key: ${{ runner.os }}-xwin-cache-v1
+
+      - name: Run Clippy (Windows)
+        if: steps.filter.outputs.code_changed == 'true'
+        run: cargo xwin clippy --target x86_64-pc-windows-msvc -- -D warnings
+
+  clippy-android:
+    name: Clippy (Android)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Check path changes
+        uses: dorny/paths-filter@v4
+        id: filter
+        with:
+          filters: |
+            code_changed:
+              - 'src/**'
+              - 'assets/locales/**'
+              - 'Cargo.toml'
+              - 'Cargo.lock'
+              - 'build.rs'
+              - '.github/workflows/clippy_check.yml'
 
       - name: Setup Android NDK Environment
-        if: steps.filter.outputs.code_changed == 'true' && matrix.target == 'aarch64-linux-android'
+        if: steps.filter.outputs.code_changed == 'true'
         run: |
           echo "RUSTFLAGS=-C link-args=-static-libstdc++ -C link-args=-lc++abi" >> $GITHUB_ENV
           TOOLCHAIN="$ANDROID_NDK_LATEST_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin"
@@ -51,36 +100,13 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
         with:
           components: clippy
-          targets: ${{ matrix.target }}
+          targets: aarch64-linux-android
 
       - uses: Swatinem/rust-cache@v2
         if: steps.filter.outputs.code_changed == 'true'
         with:
-          prefix-key: ${{ matrix.target }}
-
-      - name: Setup Windows MSVC Cross-Compile Tools
-        if: steps.filter.outputs.code_changed == 'true' && matrix.target == 'x86_64-pc-windows-msvc'
-        run: |
-          sudo apt install -y llvm lld
-          sudo ln -sf /usr/bin/llvm-ar /usr/local/bin/llvm-lib
-
-      - name: Install cargo-xwin
-        if: steps.filter.outputs.code_changed == 'true' && matrix.target == 'x86_64-pc-windows-msvc'
-        uses: taiki-e/install-action@v2
-        with:
-          tool: cargo-xwin@0.23.1
-
-      - name: Cache cargo-xwin MSVC CRT & Windows SDK
-        if: steps.filter.outputs.code_changed == 'true' && matrix.target == 'x86_64-pc-windows-msvc'
-        uses: actions/cache@v6
-        with:
-          path: ~/.cache/cargo-xwin
-          key: ${{ runner.os }}-xwin-cache-v1
-
-      - name: Run Clippy (Windows)
-        if: steps.filter.outputs.code_changed == 'true' && matrix.target == 'x86_64-pc-windows-msvc'
-        run: cargo xwin clippy --target ${{ matrix.target }} -- -D warnings
+          prefix-key: aarch64-linux-android
 
       - name: Run Clippy (Android)
-        if: steps.filter.outputs.code_changed == 'true' && matrix.target == 'aarch64-linux-android'
-        run: cargo clippy --target ${{ matrix.target }} -- -D warnings
+        if: steps.filter.outputs.code_changed == 'true'
+        run: cargo clippy --target aarch64-linux-android -- -D warnings
