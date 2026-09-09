@@ -78,6 +78,11 @@ jobs:
   build-windows:
     runs-on: ubuntu-latest
     if: "!contains(github.event.head_commit.message, '[ci skip]')"
+    env:
+      CFLAGS_x86_64_pc_windows_msvc: "-D_ALLOW_COMPILER_AND_STL_VERSION_MISMATCH"
+      CXXFLAGS_x86_64_pc_windows_msvc: "-D_ALLOW_COMPILER_AND_STL_VERSION_MISMATCH"
+      CFLAGS: "-D_ALLOW_COMPILER_AND_STL_VERSION_MISMATCH"
+      CXXFLAGS: "-D_ALLOW_COMPILER_AND_STL_VERSION_MISMATCH"
     steps:
       - uses: actions/checkout@v7
 
@@ -91,8 +96,23 @@ jobs:
 
       - name: Setup Windows MSVC Cross-Compile Tools
         run: |
-          sudo apt install -y llvm lld
-          sudo ln -sf /usr/bin/llvm-ar /usr/local/bin/llvm-lib
+          sudo apt-get update
+          sudo apt-get install -y clang-19 lld-19 llvm-19
+          echo "/usr/lib/llvm-19/bin" >> $GITHUB_PATH
+          for tool in clang clang++ clang-cl lld lld-link ld.lld llvm-ar llvm-lib; do
+            if [ -f "/usr/lib/llvm-19/bin/$tool" ]; then
+              sudo ln -sf "/usr/lib/llvm-19/bin/$tool" "/usr/local/bin/$tool"
+            elif command -v "$tool" >/dev/null 2>&1; then
+              sudo ln -sf "$(which "$tool")" "/usr/local/bin/$tool"
+            fi
+          done
+          if [ ! -f /usr/local/bin/llvm-lib ]; then
+            if [ -f /usr/lib/llvm-19/bin/llvm-ar ]; then
+              sudo ln -sf /usr/lib/llvm-19/bin/llvm-ar /usr/local/bin/llvm-lib
+            elif command -v llvm-ar >/dev/null 2>&1; then
+              sudo ln -sf "$(which llvm-ar)" /usr/local/bin/llvm-lib
+            fi
+          fi
 
       - name: Install cargo-xwin
         uses: taiki-e/install-action@v2

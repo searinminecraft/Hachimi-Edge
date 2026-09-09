@@ -97,18 +97,60 @@ jobs:
             build/zygisk-*.zip
 
   build-windows:
-    runs-on: windows-latest
+    runs-on: ubuntu-latest
     if: "!contains(github.event.head_commit.message, '[ci skip]')"
+    env:
+      CFLAGS_x86_64_pc_windows_msvc: "-D_ALLOW_COMPILER_AND_STL_VERSION_MISMATCH"
+      CXXFLAGS_x86_64_pc_windows_msvc: "-D_ALLOW_COMPILER_AND_STL_VERSION_MISMATCH"
+      CFLAGS: "-D_ALLOW_COMPILER_AND_STL_VERSION_MISMATCH"
+      CXXFLAGS: "-D_ALLOW_COMPILER_AND_STL_VERSION_MISMATCH"
     steps:
       - uses: actions/checkout@v7
-      - name: Cache Rust dependencies
-        uses: swatinem/rust-cache@v2
-
 
       - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-pc-windows-msvc
+
+      - uses: swatinem/rust-cache@v2
+        with:
+          prefix-key: x86_64-pc-windows-msvc
+
+      - name: Setup Windows MSVC Cross-Compile Tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang-19 lld-19 llvm-19
+          echo "/usr/lib/llvm-19/bin" >> $GITHUB_PATH
+          for tool in clang clang++ clang-cl lld lld-link ld.lld llvm-ar llvm-lib; do
+            if [ -f "/usr/lib/llvm-19/bin/$tool" ]; then
+              sudo ln -sf "/usr/lib/llvm-19/bin/$tool" "/usr/local/bin/$tool"
+            elif command -v "$tool" >/dev/null 2>&1; then
+              sudo ln -sf "$(which "$tool")" "/usr/local/bin/$tool"
+            fi
+          done
+          if [ ! -f /usr/local/bin/llvm-lib ]; then
+            if [ -f /usr/lib/llvm-19/bin/llvm-ar ]; then
+              sudo ln -sf /usr/lib/llvm-19/bin/llvm-ar /usr/local/bin/llvm-lib
+            elif command -v llvm-ar >/dev/null 2>&1; then
+              sudo ln -sf "$(which llvm-ar)" /usr/local/bin/llvm-lib
+            fi
+          fi
+
+      - name: Install cargo-xwin
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-xwin@0.23.1
+
+      - name: Cache cargo-xwin MSVC CRT & Windows SDK
+        uses: actions/cache@v6
+        with:
+          path: ~/.cache/cargo-xwin
+          key: ${{ runner.os }}-xwin-cache-v1
+
       - name: Build Hachimi for Windows
         run: |
-          bash tools/windows/build.sh
+          mkdir -p build
+          cargo xwin build --target x86_64-pc-windows-msvc --target-dir build --release
+          mv build/x86_64-pc-windows-msvc/release/hachimi.dll build/
         env:
           HACHIMI_IGNORE_DIRTY: "false"
           RELEASE: "1"
@@ -117,8 +159,8 @@ jobs:
         run: |
           git clone --depth 1 --revision d4c3f79801c8131e26df585766c35e5ce11ec57f https://github.com/Hachimi-Hachimi/Cellar
           cd Cellar
-          cargo build --target x86_64-pc-windows-msvc --target-dir build --release
-          move build\x86_64-pc-windows-msvc\release\cellar.dll build
+          cargo xwin build --target x86_64-pc-windows-msvc --target-dir build --release
+          mv build/x86_64-pc-windows-msvc/release/cellar.dll build/
           cd ..
 
       - name: Check out FunnyHoney
@@ -127,20 +169,19 @@ jobs:
       - name: Build Installer
         run: |
           git clone --depth 1 --revision 0387eb987aa9bc446415844e321125dff16e210f https://github.com/teiosteppa/Installer
-          copy build\hachimi.dll Installer
-          move Cellar\build\cellar.dll Installer
-          move FunnyHoney\FunnyHoney.exe Installer
+          cp build/hachimi.dll Installer/
+          mv Cellar/build/cellar.dll Installer/
+          mv FunnyHoney/FunnyHoney.exe Installer/
           cd Installer
-          cargo build --target x86_64-pc-windows-msvc --target-dir build --release --features compress_bin
+          cargo xwin build --target x86_64-pc-windows-msvc --target-dir build --release --features compress_bin
           cd ..
-          move Installer\build\x86_64-pc-windows-msvc\release\hachimi_installer.exe build
+          mv Installer/build/x86_64-pc-windows-msvc/release/hachimi_installer.exe build/
 
       - name: Get checksums for Windows binaries
-        shell: bash
         run: |
           cargo install b3sum --locked --version 1.8.6
-          DLL_HASH=($(b3sum build/hachimi.dll | tr -d '\r'))
-          EXE_HASH=($(b3sum build/hachimi_installer.exe | tr -d '\r'))
+          DLL_HASH=$(b3sum --no-names build/hachimi.dll)
+          EXE_HASH=$(b3sum --no-names build/hachimi_installer.exe)
           cat <<EOF > build/blake3.json
           {
             "hachimi.dll": "$DLL_HASH",
