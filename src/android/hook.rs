@@ -149,18 +149,27 @@ fn init_internal(env: *mut jni::sys::JNIEnv) -> Result<(), Error> {
             let orig = (*jni_table).RegisterNatives;
             ORIG_REGISTER_NATIVES.store(orig.map(|f| f as usize).unwrap_or(0), Ordering::Release);
 
+            // The field being written can land on a different page than the one
+            // containing the start of the table (depends on how the vendor's ART
+            // build laid out the const table in .rodata), so the mprotect range
+            // must be derived from the field's own address/size, not the table's.
+            let field_addr = std::ptr::addr_of!((*jni_table).RegisterNatives) as usize;
+            let field_size = std::mem::size_of_val(&(*jni_table).RegisterNatives);
+
             let page_size = libc::sysconf(libc::_SC_PAGESIZE) as usize;
-            let page_addr = (jni_table as usize) & !(page_size - 1);
+            let range_start = field_addr & !(page_size - 1);
+            let range_end = (field_addr + field_size + page_size - 1) & !(page_size - 1);
+            let range_len = range_end - range_start;
 
             let ret = libc::mprotect(
-                page_addr as *mut c_void,
-                page_size,
+                range_start as *mut c_void,
+                range_len,
                 libc::PROT_READ | libc::PROT_WRITE,
             );
             if ret != 0 {
                 let errno = std::io::Error::last_os_error();
                 warn!(
-                    "mprotect(RW) on JNI vtable page failed ({}); \
+                    "mprotect(RW) on JNI vtable page(s) failed ({}); \
                      RegisterNatives hook skipped — nativeInjectEvent won't be intercepted",
                     errno
                 );
@@ -171,10 +180,10 @@ fn init_internal(env: *mut jni::sys::JNIEnv) -> Result<(), Error> {
 
             (*jni_table).RegisterNatives = Some(JNINativeInterface_RegisterNatives);
 
-            let ret = libc::mprotect(page_addr as *mut c_void, page_size, libc::PROT_READ);
+            let ret = libc::mprotect(range_start as *mut c_void, range_len, libc::PROT_READ);
             if ret != 0 {
                 let errno = std::io::Error::last_os_error();
-                warn!("mprotect(RO) restore on JNI vtable page failed ({})", errno);
+                warn!("mprotect(RO) restore on JNI vtable page(s) failed ({})", errno);
             }
         }
     }
