@@ -116,7 +116,7 @@ fn spark(painter: &Painter, rect: Rect, samples: &[f32], total: usize, color: Co
         )
     };
     for i in 1..n {
-        painter.line_segment([plot(i - 1, samples[i - 1]), plot(i, samples[i])], Stroke::new(1.6, color));
+        painter.line_segment([plot(i - 1, samples[i - 1]), plot(i, samples[i])], Stroke::new(1.6_f32, color));
     }
     painter.circle_filled(plot(n - 1, samples[n - 1]), 2.5, color);
 }
@@ -170,7 +170,7 @@ fn make_window(
     let cr = get_global_corner_radius().unwrap_or(8.0).max(8.0) as u8;
     let frame = egui::Frame::NONE
         .fill(window_fill(opacity))
-        .stroke(Stroke::new(1.0, get_global_color("outlineVariant")))
+        .stroke(Stroke::new(1.0_f32, get_global_color("outlineVariant")))
         .corner_radius(egui::CornerRadius::same(cr))
         .inner_margin(egui::Margin::same(8));
 
