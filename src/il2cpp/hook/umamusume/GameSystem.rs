@@ -35,6 +35,13 @@ fn apply_free_camera_live_pause_request() {
 
 extern "C" fn GameSystem_Update(this: *mut Il2CppObject) {
     crate::core::gui::race_slider_drain();
+    // catch_unwind, not a bare call: this is new, less-battle-tested code running every
+    // frame on the main thread - a panic here must not be allowed to take the whole
+    // process down with it (matches the defensive pattern the race-director-plugin this
+    // was ported from used everywhere for the same reason).
+    if std::panic::catch_unwind(super::race_telemetry::collect_frame).is_err() {
+        error!("race_telemetry::collect_frame PANICKED (caught)");
+    }
 
     #[cfg(target_os = "windows")]
     {

@@ -143,6 +143,9 @@ mod RaceViewBase;
 mod RaceEffectManager;
 pub mod HorseData;
 pub mod HorseRaceInfo;
+pub mod RaceHorseData;
+pub mod HorseRaceAIBase;
+pub mod HorseRaceAIReplay;
 #[cfg(target_os = "windows")]
 mod HorseRaceInfoReplay;
 pub mod JikkyoControllerBase;
@@ -159,6 +162,7 @@ pub mod RaceUI;
 pub mod RaceUIMiniMap;
 pub mod RaceViewReplay;
 pub mod RaceSimulateData;
+pub mod RaceSimulateHorseResultData;
 pub mod RaceSimulateEventData;
 pub mod RaceSimulateReader;
 pub mod SimulateEventType;
@@ -190,6 +194,8 @@ pub mod SceneDefine;
 pub mod GameDefine;
 pub mod MasterDataManager;
 pub mod MasterItemExchangeTop;
+pub mod MasterSkillData;
+pub mod race_telemetry;
 
 pub fn init() {
     get_assembly_image_or_return!(image, "umamusume.dll");
@@ -322,6 +328,9 @@ pub fn init() {
     }
     HorseData::init(image);
     HorseRaceInfo::init(image);
+    RaceHorseData::init(image);
+    HorseRaceAIBase::init(image);
+    HorseRaceAIReplay::init(image);
     JikkyoControllerBase::init(image);
     Jikkyo::init(image);
     RaceBGMController::init(image);
@@ -336,6 +345,7 @@ pub fn init() {
     RaceHorseManagerBase::init(image);
     RaceHorseManagerReplay::init(image);
     RaceSimulateData::init(image);
+    RaceSimulateHorseResultData::init(image);
     RaceSimulateEventData::init(image);
     RaceSimulateReader::init(image);
     SkillManager::init(image);
@@ -364,4 +374,5 @@ pub fn init() {
     GameDefine::init(image);
     MasterDataManager::init(image);
     MasterItemExchangeTop::init(image);
+    MasterSkillData::init(image);
 }

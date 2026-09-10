@@ -9,6 +9,20 @@ def_field_value_accessors!(get__position, set__position, POSITION_FIELD, Vector3
 def_field_value_accessors!(get__rotationOnLane, set__rotationOnLane, ROTATION_ON_LANE_FIELD, Quaternion_t);
 def_field_object_accessors!(get__skillManager, set__skillManager, SKILL_MANAGER_FIELD, Il2CppObject);
 
+def_field_value_accessors!(get get__hp, HP_FIELD, f32);
+def_field_value_accessors!(get get__maxHp, MAX_HP_FIELD, f32);
+def_field_value_accessors!(get get__curOrder, CUR_ORDER_FIELD, i32);
+def_field_value_accessors!(get get__lastSpeed, LAST_SPEED_FIELD, f32);
+def_field_value_accessors!(get get__distance, DISTANCE_FIELD, f32);
+def_field_value_accessors!(get get__isHpEmptyOnRace, IS_HP_EMPTY_ON_RACE_FIELD, bool);
+def_field_value_accessors!(get get__phase, PHASE_FIELD, i32);
+def_field_value_accessors!(get get__isBadStart, IS_BAD_START_FIELD, bool);
+def_field_value_accessors!(get get__isCompeteFight, IS_COMPETE_FIGHT_FIELD, bool);
+def_field_value_accessors!(get get__isCompeteTop, IS_COMPETE_TOP_FIELD, bool);
+def_field_value_accessors!(get get__prevOrder, PREV_ORDER_FIELD, i32);
+def_field_object_accessors!(get get__horseData, HORSE_DATA_FIELD, Il2CppObject);
+def_field_object_accessors!(get get__horseRaceAI, HORSE_RACE_AI_FIELD, Il2CppObject);
+
 def_method_wrapper_fn!(get_IsStartDash, GET_ISSTARTDASH_ADDR, bool, this: *mut Il2CppObject);
 def_method_wrapper_fn!(IsFinished, ISFINISHED_ADDR, bool, this: *mut Il2CppObject);
 
@@ -80,6 +94,19 @@ pub fn init(umamusume: *const Il2CppImage) {
         POSITION_FIELD = get_field_from_name(HorseRaceInfo, c"_position");
         ROTATION_ON_LANE_FIELD = get_field_from_name(HorseRaceInfo, c"_rotationOnLane");
         SKILL_MANAGER_FIELD = get_field_from_name(HorseRaceInfo, c"_skillManager");
+        HP_FIELD = get_field_from_name(HorseRaceInfo, c"_hp");
+        MAX_HP_FIELD = get_field_from_name(HorseRaceInfo, c"_maxHp");
+        CUR_ORDER_FIELD = get_field_from_name(HorseRaceInfo, c"<CurOrder>k__BackingField");
+        LAST_SPEED_FIELD = get_field_from_name(HorseRaceInfo, c"_lastSpeed");
+        DISTANCE_FIELD = get_field_from_name(HorseRaceInfo, c"_distance");
+        IS_HP_EMPTY_ON_RACE_FIELD = get_field_from_name(HorseRaceInfo, c"<IsHpEmptyOnRace>k__BackingField");
+        PHASE_FIELD = get_field_from_name(HorseRaceInfo, c"_phase");
+        IS_BAD_START_FIELD = get_field_from_name(HorseRaceInfo, c"<IsBadStart>k__BackingField");
+        IS_COMPETE_FIGHT_FIELD = get_field_from_name(HorseRaceInfo, c"<IsCompeteFight>k__BackingField");
+        IS_COMPETE_TOP_FIELD = get_field_from_name(HorseRaceInfo, c"<IsCompeteTop>k__BackingField");
+        PREV_ORDER_FIELD = get_field_from_name(HorseRaceInfo, c"<PrevOrder>k__BackingField");
+        HORSE_DATA_FIELD = get_field_from_name(HorseRaceInfo, c"_horseData");
+        HORSE_RACE_AI_FIELD = get_field_from_name(HorseRaceInfo, c"_horseRaceAI");
         GET_ISSTARTDASH_ADDR = get_method_addr(HorseRaceInfo, c"get_IsStartDash", 0);
         ISFINISHED_ADDR = get_method_addr(HorseRaceInfo, c"IsFinished", 0);
     }

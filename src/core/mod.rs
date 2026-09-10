@@ -35,6 +35,7 @@ pub mod updater;
 pub mod captions;
 pub mod live_utils;
 pub mod msgpack_modifier;
+pub mod race_director;
 pub mod taskbar;
 
 pub mod theme;
