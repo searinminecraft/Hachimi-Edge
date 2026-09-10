@@ -548,3 +548,14 @@ free_camera:
     * **D-Pad Left:** Nakaraang target *(Follow Camera at First Person)*
     * **D-Pad Up:** Susunod na bahagi ng katawan *(Follow Camera lang)*
     * **D-Pad Down:** Nakaraang bahagi ng katawan *(Follow Camera lang)*
+
+race_director_enabled: "Race Director HUD"
+race_director_show_tower: "Tore ng Tiyempo"
+race_director_show_followed: "Panel ng Sinusundang Uma"
+race_director_show_winprob: "Posibilidad ng pagkapanalo"
+race_director_show_predicted: "Inaasahang posisyon ng server"
+race_director_show_predicted_desc: "Pinapakita ang precomputed na finish order mula sa simula ng karera - isang spoiler, naka-off bilang default."
+race_director_opacity: "Background opacity ng HUD"
+race_director_reset_windows: "I-reset ang mga posisyon ng window"
+race_director_reset: "I-reset"
+
