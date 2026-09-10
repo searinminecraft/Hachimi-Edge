@@ -886,6 +886,49 @@ impl Default for UiTranslucencyMode {
     }
 }
 
+#[derive(Deserialize, Serialize, Clone, Default)]
+pub struct RaceDirectorWindowState {
+    #[serde(default)]
+    pub pos: Option<[f32; 2]>,
+    #[serde(default)]
+    pub size: Option<[f32; 2]>,
+}
+
+#[derive(Deserialize, Serialize, Clone)]
+#[serde(default)]
+pub struct RaceDirectorConfig {
+    pub enabled: bool,
+    pub show_tower: bool,
+    pub show_followed: bool,
+    pub show_winprob: bool,
+    // Off by default, unlike the other panels - this shows the actual precomputed
+    // result outright (see race_director::predicted_rows), not a paced probability.
+    // Opt-in since that's a genuine spoiler.
+    pub show_predicted: bool,
+    pub opacity: f32,
+    pub window_tower: RaceDirectorWindowState,
+    pub window_followed: RaceDirectorWindowState,
+    pub window_winprob: RaceDirectorWindowState,
+    pub window_predicted: RaceDirectorWindowState,
+}
+
+impl Default for RaceDirectorConfig {
+    fn default() -> Self {
+        Self {
+            enabled: true,
+            show_tower: true,
+            show_followed: true,
+            show_winprob: true,
+            show_predicted: false,
+            opacity: 0.85,
+            window_tower: RaceDirectorWindowState::default(),
+            window_followed: RaceDirectorWindowState::default(),
+            window_winprob: RaceDirectorWindowState::default(),
+            window_predicted: RaceDirectorWindowState::default(),
+        }
+    }
+}
+
 #[derive(Deserialize, Serialize, Clone)]
 pub struct CaptionConfig {
     #[serde(default)]
@@ -1079,6 +1122,8 @@ pub struct Config {
     pub race_playback_button: bool,
     #[serde(default = "Config::default_true")]
     pub race_playback_key_enable: bool,
+    #[serde(default)]
+    pub race_director: RaceDirectorConfig,
     #[serde(default)]
     pub disabled_hooks: FnvHashSet<String>,
     #[serde(flatten)]

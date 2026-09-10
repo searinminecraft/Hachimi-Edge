@@ -208,6 +208,22 @@ pub fn render(editor: &ConfigEditor, config: &mut crate::core::hachimi::Config, 
         ConfigEditor::space(ui, 4.0);
     }
 
+    ConfigEditor::list_tile_switch(ui, t!("config_editor.race_director_enabled"), &mut config.race_director.enabled, true);
+    if config.race_director.enabled {
+        ConfigEditor::list_tile_switch(ui, t!("config_editor.race_director_show_tower"), &mut config.race_director.show_tower, true);
+        ConfigEditor::list_tile_switch(ui, t!("config_editor.race_director_show_followed"), &mut config.race_director.show_followed, true);
+        ConfigEditor::list_tile_switch(ui, t!("config_editor.race_director_show_winprob"), &mut config.race_director.show_winprob, true);
+        ConfigEditor::list_tile_switch_described(
+            ui, t!("config_editor.race_director_show_predicted"),
+            &mut config.race_director.show_predicted, true,
+            t!("config_editor.race_director_show_predicted_desc"),
+        );
+        ConfigEditor::list_tile_slider(ui, t!("config_editor.race_director_opacity"), &mut config.race_director.opacity, 0.1..=1.0, 0.05, 2);
+        if ConfigEditor::list_tile_action_button(ui, t!("config_editor.race_director_reset_windows"), t!("config_editor.race_director_reset")) {
+            crate::core::gui::race_director_hud::reset_window_positions();
+        }
+    }
+
     ConfigEditor::list_tile_switch(ui, t!("config_editor.live_slider_always_show"), &mut config.live_slider_always_show, true);
     ConfigEditor::list_tile_switch(ui, t!("config_editor.live_playback_loop"), &mut config.live_playback_loop, true);
     ConfigEditor::list_tile_switch(ui, t!("config_editor.trainer_live_landscape"), &mut config.trainer_live_landscape, true);

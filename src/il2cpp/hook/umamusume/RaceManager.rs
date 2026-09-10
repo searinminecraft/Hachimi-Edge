@@ -17,7 +17,7 @@ pub fn instance() -> *mut Il2CppObject {
 
 def_field_object_accessors!(get get__horseManager, _HORSEMANAGER_FIELD, Il2CppObject);
 
-def_method_wrapper_fn!(get_RaceInfo, GET_RACE_INFO_ADDR, *mut Il2CppObject,);
+def_method_wrapper_fn!(get_RaceInfo, GET_RACE_INFO_ADDR, *mut Il2CppObject, this: *mut Il2CppObject);
 def_method_wrapper_fn!(get_RaceSound, GET_RACE_SOUND_ADDR, *mut Il2CppObject, this: *mut Il2CppObject);
 def_method_wrapper_fn!(get_RaceView, GET_RACE_VIEW_ADDR, *mut Il2CppObject, this: *mut Il2CppObject);
 def_method_wrapper_fn!(get_RaceMainView, GET_RACEMAINVIEW_ADDR, *mut Il2CppObject, this: *mut Il2CppObject);

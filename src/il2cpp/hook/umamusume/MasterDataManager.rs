@@ -1,6 +1,6 @@
 use crate::{
     il2cpp::{
-        symbols::{get_method_addr, SingletonLike},
+        symbols::{get_field_from_name, get_method_addr, SingletonLike},
         types::*
     }
 };
@@ -21,6 +21,8 @@ pub fn instance() -> *mut Il2CppObject {
 static mut GET_MASTERITEMEXCHANGETOP_ADDR: usize = 0;
 impl_addr_wrapper_fn!(get_masterItemExchangeTop, GET_MASTERITEMEXCHANGETOP_ADDR, *mut Il2CppObject, this: *mut Il2CppObject);
 
+def_field_object_accessors!(get get__masterSkillData, MASTER_SKILL_DATA_FIELD, Il2CppObject);
+
 pub fn init(umamusume: *const Il2CppImage) {
     get_class_or_return!(umamusume, Gallop, MasterDataManager);
 
@@ -28,5 +30,6 @@ pub fn init(umamusume: *const Il2CppImage) {
         CLASS = MasterDataManager;
 
         GET_MASTERITEMEXCHANGETOP_ADDR = get_method_addr(MasterDataManager, c"get_masterItemExchangeTop", 0);
+        MASTER_SKILL_DATA_FIELD = get_field_from_name(MasterDataManager, c"<masterSkillData>k__BackingField");
     }
 }

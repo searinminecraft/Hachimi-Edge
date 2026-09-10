@@ -1,6 +1,7 @@
 pub mod config;
 pub mod dialogs;
 pub mod plugins;
+pub mod race_director_hud;
 pub mod tabs;
 pub mod utils;
 pub mod windows;
@@ -1214,6 +1215,12 @@ impl Gui {
         self.run_live_slider(&ctx);
         self.run_race_slider(&ctx);
         Self::run_race_playback_button(&ctx);
+        // catch_unwind: new, less-battle-tested code drawn every frame - a panic here
+        // must not take the whole process down (see GameSystem_Update's identical
+        // wrapping of race_telemetry::collect_frame for the same reasoning).
+        if std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| race_director_hud::run(&ctx))).is_err() {
+            error!("race_director_hud::run PANICKED (caught)");
+        }
         #[cfg(target_os = "windows")]
         self.run_free_camera_overlay(&ctx);
 
@@ -1224,6 +1231,10 @@ impl Gui {
             IS_LIVE_SLIDER_ACTIVE.load(atomic::Ordering::Relaxed) && wants_pointer;
         let race_slider_input = Self::race_slider_showing();
         let race_playback_button_input = Self::race_playback_button_showing();
+        // Unlike the slider/button above, the HUD windows cover real screen area for the
+        // whole race - only claim input while the pointer is actually over/interacting
+        // with one of them, not for the HUD's mere presence.
+        let race_director_input = race_director_hud::showing() && wants_pointer;
         #[cfg(target_os = "windows")]
         let free_camera_input_capture = crate::windows::free_camera::wants_windows_input_capture();
         #[cfg(not(target_os = "windows"))]
@@ -1235,11 +1246,11 @@ impl Gui {
         );
 
         IS_CONSUMING_INPUT.store(
-            self.is_consuming_input() || has_interactive_widgets || race_slider_input || race_playback_button_input || free_camera_input_capture,
+            self.is_consuming_input() || has_interactive_widgets || race_slider_input || race_playback_button_input || race_director_input || free_camera_input_capture,
             atomic::Ordering::Release,
         );
 
-        WANTS_INPUT.store(wants_pointer || race_slider_input || race_playback_button_input || free_camera_input_capture, atomic::Ordering::Release);
+        WANTS_INPUT.store(wants_pointer || race_slider_input || race_playback_button_input || race_director_input || free_camera_input_capture, atomic::Ordering::Release);
 
         self.context.end_pass()
     }
@@ -2418,6 +2429,14 @@ impl Gui {
             && self.windows.is_empty()
             && !IS_LIVE_SCENE.load(atomic::Ordering::Relaxed)
             && !free_camera_overlay
+            // These three are drawn unconditionally from run() (not gated behind
+            // menu_visible/self.windows), so the present-hook's "nothing to draw, skip
+            // this frame's GUI pass entirely" optimization above needs to know about them
+            // too - otherwise they silently only ever render on frames where something
+            // else already forced the GUI pass to run (e.g. the menu happening to be open).
+            && !Self::race_slider_showing()
+            && !Self::race_playback_button_showing()
+            && !race_director_hud::showing()
     }
 
     pub fn is_gui_input_active_atomic() -> bool {
