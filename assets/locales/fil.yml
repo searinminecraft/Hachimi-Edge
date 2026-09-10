@@ -4,7 +4,7 @@ windows:
   menu_open_key: "Kanang arrow"
 
 android: 
-  menu_open_key: "Vol Up + Vol Down\n\uf72b o i-tap nang tatlong beses ang top-left ng screen"
+  menu_open_key: "Vol Up + Vol Down\n\uf72b o i-tap nang tatlong beses ang itaas\nkaliwang bahagi ng screen"
 
 splash_sub: "\ue5d2 Pindutin ang %{open_key_str} para buksan ang menu."
 loading_label: "Naglo-load..."
@@ -30,12 +30,12 @@ default: "Default"
 off: "Naka-off"
 on: "Naka-on"
 enable: "I-enable"
-disabled: "Hindi pinagana"
+disabled: "Naka-disable"
 minutes: "minuto"
 info: "Impormasyon"
 warning: "Babala"
 confirm_dialog_title: "Kumpirmahin"
-soft_restart_confirm_content: "Gusto mo ba talaga i-soft restart ang laro?"
+soft_restart_confirm_content: "Gusto mo bang i-soft restart ang laro?"
 in_game_browser_confirm_content: "Gusto mo bang buksan ang in-game na browser?"
 browser_dialog_title: "Browser"
 spring: "Tagsibol"
@@ -66,7 +66,7 @@ menu:
   stats_heading: "\ue473 Mga Istatistika"
   localize_dict_entries: "Mga entry sa localize_dict: %{count}"
   hashed_dict_entries: "Mga entry sa hashed_dict: %{count}"
-  config_heading: "\ue8b8 Konfigurasyón"
+  config_heading: "\ue8b8 Konfigurasyon"
   open_config_editor: "\ue8b9 Buksan ang config editor"
   reload_config: "\ue5d5 I-reload ang config"
   open_first_time_setup: "\ue869 Buksan ang setup"
@@ -115,7 +115,7 @@ notification:
   menu_open_key_set: "Itinakda ang hotkey ng pagbukas sa %{key}"
   ipc_softreset_exec: "Na-execute ng IPC remote ang soft-reset"
   atlas_workaround_reset: "Nabago ang mga atlas file. Na-disable ang workaround."
-  asset_mismatch: "Ilang mga asset ang na-disable dahil sa isang update. Suriin ang mga log para sa mga detalye."
+  asset_mismatch: "May ilang mga asset ang na-disable dahil sa isang update. Suriin ang mga log para sa mga detalye."
   error_occurred: "Nagkaroon ng error: %{reason}"
 
 first_time_setup: 
@@ -125,8 +125,9 @@ first_time_setup:
     Na-install na ang Hachimi! Gagabayan ka nito sa inisyal na pag-set up.
     Kung hindi ka interesado sa translation na feature, maaari mo itong laktawan
     sa pamamagitan ng pagsara nito.
-    DISCLAIMER: Isang proyekto na pinangungunahan ng komunidad ang Hachimi. Ginawa
-    ng mga iba't ibang mga kontribyutor ang mga translator. Hindi ito binuo o ineendorso
+
+    DISCLAIMER: Isang itong proyekto na pinangungunahan ng komunidad ang Hachimi. Ginawa
+    ng mga iba't ibang mga kontribyutor ang mga pagsasalin. Hindi ito binuo o ineendorso
     ng Cygames, Inc., at lumalabag ito sa Mga Tuntunin sa Serbisyo. Sa pamamagitan ng pagpatuloy,
     tinatanggap mo na gagamitin mo ito sa iyong sariling peligro.
 
@@ -168,7 +169,7 @@ config_editor:
   gameplay_tab: "\ue30f Paglalaro"
   advanced_tab: "\ue8b8 Advanced"
   advanced_settings_heading: "Advanced"
-  experimental_settings_heading: "Experimental"
+  experimental_settings_heading: "Pang-eksperimento"
   developer_settings_heading: "Developer"
   language: "Wika"
   restore_defaults: "I-restore sa mga default"
@@ -177,8 +178,8 @@ config_editor:
     Idi-disable nito ang Hachimi overlay pagkatapos mo i-restart ang laro.
     na nangangahulugan na HINDI mo maa-access ang Config Editor pagkatpos nito.
     Kapag hindi ito sinasadya, isara ang dialog na ito at I-DISABLE ang opsyon.
-  ipv4_only: "IPv4 na ureq lamang"
-  meta_index_url: "URL ng Translation Meta"
+  ipv4_only: "Gamitin ang IPv4 para sa updater"
+  meta_index_url: "URL ng Translation Metadata"
   debug_mode: "Debug mode"
   enable_file_logging: "I-enable ang logging sa file"
   apply_atlas_workaround: "I-apply ang TL atlas workaround"
@@ -246,14 +247,14 @@ config_editor:
   cyspring_stiffness_force_rate_scale: "Scale ng Lakas ng Stiffness sa CySpring"
   cyspring_drag_force_rate_scale: "Scale ng Lakas ng Drag sa CySpring"
   disable_skill_name_translation: "I-disable ang pag-translate ng mga skill name"
-  disable_tap_effect: "I-disable ang Tap Effect"
+  disable_tap_effect: "I-disable ang particle effect sa pag-tap"
   hide_ingame_ui_hotkey: "I-enable ang hotkey ng pagtago ng game UI"
   hide_ingame_ui_hotkey_info: >-
     Pinapayagan ng opsyong ito ang isang shortcut key sa pag-toggle ng game UI.
     Para sa Android, maaari mong i-triple tap ang top-right ng screen.
     Para sa PC/Android na may keyboard, ito ang Insert key at maaaring i-configure sa GUI o config.
-  unlock_live_chara: "I-unlock ang mga Karakter/Kanta ng Live Theater"
-  live_slider_always_show: "Laging Ipakita ang Live Slider"
+  unlock_live_chara: "I-unlock ang mga Karakter/Kanta sa Live Theater"
+  live_slider_always_show: "Laging Ipakita ang slider sa Live Concert"
   live_playback_loop: "Ulitin ang mga Live Performance"
   trainer_live_landscape: "Pilitin ang landscape mode sa concert na \"MeniShuki Rush!\""
   force_orientation_mode: "Pilitin ang orientation mode"
@@ -261,7 +262,7 @@ config_editor:
   freeform_window: "Freeform window"
   freeform_ui_scale_auto: "Awtomatikong i-scale ang UI sa freeform window"
   freeform_ui_scale_auto_ratio: "Awtomatikong ratio ng UI scale"
-  free_camera: "Libreng Camera"
+  free_camera: "Free Camera"
   taskbar_show_progress_on_schedule_book: "Progress sa taskbar kapag ginagamit ang Trainer's Agenda"
   champions_live_show_text: "I-override ang Text ng Champions Meeting Live"
   champions_live_resource_id: "Pamagat ng Champions Meeting"
@@ -283,9 +284,9 @@ config_editor:
   caption_lines_char_count: "Mga character kada linya"
   caption_outline_color: "Kulay ng Outline"
   caption_outline_size: "Laki ng Outline"
-  enable_keyboard_shortcuts: "I-enable ang mga In-Game Keyboard Shortcut"
+  enable_keyboard_shortcuts: "I-enable ang mga in-game na Keyboard Shortcut"
   discord_rpc: "Discord RPC"
-  enable_smtc: "I-enable ang Windows Media Controls"
+  enable_smtc: "Paganahin ang Windows Media Controls"
   unavailable_wine_proton: "Hindi available sa Wine/Proton"
   menu_open_key: "Hotkey ng pagbukas ng menu"
   menu_open_key_set: "Itakda"
@@ -299,7 +300,7 @@ config_editor:
   shadow_resolution: "Resolution ng Shadows"
   text_debug: "Text debug mode"
   text_log: "I-log ang naprosesong teksto"
-  text_property_dump: "I-dump ang mga katangian ng UI"
+  text_property_dump: "I-dump ang UI properties"
   text_localize_dump: "I-dump ang mga localized na string"
   text_position_debug: "I-log ang mga offset ng posisyon"
   text_path_debug: "I-log ang mga landas ng UI"
@@ -440,8 +441,8 @@ key_names:
   equals: "Equal"
   unknown: "Key %{code}"
 free_camera:
-  enable: "Paganahin ang Libreng Camera"
-  settings_title: "Mga Setting ng Libreng Camera"
+  enable: "Paganahin ang Free Camera"
+  settings_title: "Mga Setting ng Free Camera"
   section_general: "Pangkalahatan"
   section_live: "Live Theater"
   section_race: "Karera"
@@ -453,8 +454,8 @@ free_camera:
   show_overlay: "Ipakita ang switch overlay"
   selfie_use_head_transform: "Gamitin ang selfie stick sa mode na \"Sundan ang Character\""
   mode: "Mode"
-  mode_free: "Libreng Paggalaw"
-  mode_first_person: "Unang Tao"
+  mode_free: "Free Move"
+  mode_first_person: "First Person"
   mode_selfie_stick: "Sundan ang Character"
   live_move_step: "Bilis ng galaw sa Live"
   race_move_step: "Bilis ng galaw sa Karera"
@@ -462,22 +463,22 @@ free_camera:
   mouse_speed: "Bilis ng mouse"
   live_fov: "FOV sa Concert"
   race_fov: "FOV sa Karera"
-  gamepad_deadzone: "Gamepad deadzone"
+  gamepad_deadzone: "Deadzone ng Gamepad"
   gamepad_move_speed: "Bilis ng galaw sa Gamepad"
   gamepad_look_speed: "Bilis ng tingin sa Gamepad"
   live_target_position: "Posisyon ng target sa Live"
   live_target_part: "Bahagi ng target sa Live"
   live_selfie_horizontal_stabilization: "Dead zone sa pahalang na pagsubaybay sa Live"
   live_selfie_vertical_stabilization: "Dead zone sa patayong pagsubaybay sa Live"
-  live_follow_offset: "Offset sa pagsubaybay sa Live"
+  live_follow_offset: "Offset sa pagsundan sa Live"
   live_follow_lookat_offset: "Offset sa pagtingin sa Live"
-  live_follow_smooth: "Makinis na pagsubaybay sa Live"
+  live_follow_smooth: "Makinis na pagsundan sa Live"
   live_follow_smooth_lookat_step: "Pagpapakinis sa pagtingin sa Live"
   live_follow_smooth_pos_step: "Pagpapakinis sa posisyon sa Live"
-  live_first_person_offset: "Offset ng unang tao sa Live"
+  live_first_person_offset: "Offset ng first-person sa Live"
   race_target_index: "Index ng target sa Karera (-1 = auto)"
-  race_follow_offset: "Offset sa pagsubaybay sa Karera"
-  race_follow_distance: "Distansya sa pagsubaybay sa Karera"
+  race_follow_offset: "Offset sa pagsundan sa Karera"
+  race_follow_distance: "Distansya sa pagsundan sa Karera"
   race_first_person_lookat_offset: "Offset sa pagtingin sa Karera"
   overlay_mode: "Mode: %{mode}"
   overlay_target: "Target: %{target}"
@@ -510,7 +511,7 @@ free_camera:
   cheatsheet_title: "Cheatsheet sa Free Camera"
   cheatsheet_contents: |
     # Cheatsheet sa Free Camera
-    Gumagana lang ang feature na ito sa **Mga Karera** or **Live Concerts**.
+    Gumagana lang ang feature na ito sa **Mga Karera** o **Live Concerts**.
 
     Ang default na bahagi ng katawan ay ang **Face**.
 
